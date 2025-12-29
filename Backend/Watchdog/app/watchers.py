@@ -17,6 +17,10 @@ class WebWatcher(BaseWatcher):
         print("check")
 
         return result
+    
+    def make_template(self) -> str:
+        return """endpoint: {endpoint}\nstatus: {status}\nmessage: {message}\nlatency: {latency}"""
+
 
 if __name__ == "__main__":
     web = WebWatcher(config=WebConfig(endpoint="https://daehan.com"))

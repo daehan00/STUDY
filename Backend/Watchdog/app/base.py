@@ -1,18 +1,20 @@
-import json
+import time
 from abc import ABC, abstractmethod
 from typing import Any, Protocol
 
 try:
-    from .models import Status, BaseCheckResult, BaseConfig
+    from .models import Status, BaseCheckResult, BaseConfig, Message
 except ImportError:
-    from models import Status, BaseCheckResult, BaseConfig
+    from models import Status, BaseCheckResult, BaseConfig, Message
 
 
 class BaseWatcher(ABC):
-    def __init__(self, config: BaseConfig = BaseConfig(), max_retries: int = 3) -> None:
+    def __init__(self, config: BaseConfig = BaseConfig(), max_retries: int = 3, backoff: int = 1) -> None:
         self.status = Status.normal
         self.config = config
         self.max_retries = max_retries
+        self.backoff = backoff
+        self.template = self.make_template()
     
     def signature(self) -> tuple[Any]:
         return tuple(sorted(self.config.model_dump().items()))
@@ -24,6 +26,7 @@ class BaseWatcher(ABC):
 
                 if response.status == Status.normal:
                     return response
+                time.sleep(self.backoff)
             return response # type: ignore
         except:
             raise NotImplementedError
@@ -31,13 +34,12 @@ class BaseWatcher(ABC):
     @abstractmethod
     def check_server(self) -> BaseCheckResult:
         ...
-
-
-class Notifier(Protocol):
-    def send(self, msg: str):
+    
+    @abstractmethod
+    def make_template(self) -> str:
         ...
 
 
-def make_message_text(result: BaseCheckResult):
-    data = result.model_dump(mode='json')
-    return json.dumps(data, indent=2)
+class Notifier(Protocol):
+    def send(self, msg: Message):
+        ...

@@ -39,6 +39,19 @@ class WorkerCheckResult(BaseCheckResult):
     name: str
 
 
+class MessageGrade(enum.StrEnum):
+    resolved="resolved"
+    warning="warning"
+    critical="critical"
+
+
+class Message(BaseModel):
+    grade: MessageGrade
+    title: str | None = Field(default=None)
+    body: str
+    config: dict | None = Field(default={})
+
+
 if __name__ == "__main__":
     statuses = [Status.normal, Status.down, Status.latency]
     statuses.sort(key=lambda x: x.value)
