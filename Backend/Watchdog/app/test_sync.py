@@ -34,11 +34,11 @@ except ImportError:
 if __name__ == "__main__":
     watchers: list[BaseWatcher] = [WebWatcher(
         config=WebConfig(
-            name=f"testwatcher({i+1})",
-            endpoint="http://localhost:8000/health",
+            name=f"testserver({i+1})",
+            endpoint="http://localhost:8000/unstable",
             latency=2
         )
-    ) for i in range(5)]
+    ) for i in range(3)]
 
     watcher = DBWatcher(
         config=DBConfig(

@@ -32,13 +32,30 @@ services:
       timeout: 5s
       retries: 5
 
-  web:
+  web1:
     build: ./webserver
-    container_name: test_webserver
+    container_name: test_webserver1
+    environment:
+      PORT: 8000
     ports:
       - "8000:8000"
     volumes:
       - ./webserver:/app
-    depends_on:
-      - db
-      - postgres
+  web2:
+    build: ./webserver
+    container_name: test_webserver2
+    environment:
+      PORT: 8001
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./webserver:/app
+  web3:
+    build: ./webserver
+    container_name: test_webserver3
+    environment:
+      PORT: 8002
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./webserver:/app
