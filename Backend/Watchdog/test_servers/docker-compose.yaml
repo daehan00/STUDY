@@ -1,0 +1,26 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: test_db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: testdb
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./DB:/var/lib/mysql
+      - ./db_init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  web:
+    build: ./webserver
+    container_name: test_webserver
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./webserver:/app
+    depends_on:
+      - db
