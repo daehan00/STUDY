@@ -15,9 +15,14 @@ class BaseWatcher(ABC):
         self.max_retries = max_retries
         self.backoff = backoff
         self.template = self.make_template()
+        self.sign = self._signature()
     
-    def signature(self) -> tuple[Any]:
+    def _signature(self) -> tuple[Any]:
         return tuple(sorted(self.config.model_dump().items()))
+
+    @abstractmethod
+    def _check_result(self, result: BaseCheckResult) -> BaseCheckResult:
+        ...
 
     def check(self) -> BaseCheckResult:
         try:
@@ -25,9 +30,14 @@ class BaseWatcher(ABC):
                 response = self.check_server()
 
                 if response.status == Status.normal:
-                    return response
+                    if not response.signature:
+                        response.signature = self.sign
+                    return self._check_result(response)
                 time.sleep(self.backoff)
-            return response # type: ignore
+            
+            if not response.signature: # type: ignore
+                response.signature = self.sign # type: ignore
+            return self._check_result(response) # type: ignore
         except:
             raise NotImplementedError
     

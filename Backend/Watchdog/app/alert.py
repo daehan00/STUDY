@@ -1,5 +1,3 @@
-import json
-
 try:
     from .base import BaseWatcher, Notifier,BaseCheckResult
     from .models import Message, Status, MessageGrade
@@ -13,7 +11,7 @@ def set_notifiers() -> dict[Status, list[Notifier]]:
     return {
         Status.latency: [EmailNotifier()],
         Status.down: [EmailNotifier(), SlackNotifier()],
-        Status.normal: [SlackNotifier()]
+        Status.normal: [EmailNotifier(), SlackNotifier()]
     }
 
 def set_alert(
@@ -44,7 +42,7 @@ def set_alert(
 
     message = make_message_text(watcher.template, check, grade)
     
-    title = f"[{watcher.signature()[0]}] {grade.upper()}"
+    title = f"[{watcher.sign}] {grade.upper()}"
     
     return (
         Message(grade=grade, title=title, body=message),
@@ -53,7 +51,7 @@ def set_alert(
 
 def make_message_text(template: str, result: BaseCheckResult, grade: str):
     data = result.model_dump(mode='json')
-    return f"Your Service {result.status.name.capitalize()}.\n{template.format(**data)}"
+    return f"{grade.upper()} ISSUE: Your Service {result.status.name.upper()}.\n\n{template.format(**data)}"
 
 
 if __name__ == "__main__":

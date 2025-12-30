@@ -33,10 +33,11 @@ if __name__ == "__main__":
     watchers = [WebWatcher(
         config=WebConfig(
             name=f"testwatcher({i+1})",
-            endpoint=f"https://testwatcher{i+1}"
+            endpoint="http://localhost:8000/timeout",
+            latency=2
         )
     ) for i in range(5)]
-    watcher_dict = {watcher.signature(): watcher for watcher in watchers}
+    watcher_dict = {watcher.sign: watcher for watcher in watchers}
     print(len(watcher_dict.items()))
 
     notifiers = set_notifiers()

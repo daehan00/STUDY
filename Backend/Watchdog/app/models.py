@@ -9,6 +9,7 @@ class BaseConfig(BaseModel):
 
 class WebConfig(BaseConfig):
     endpoint: str
+    latency: int = Field(default=30)
     auth_key: str | None = Field(default=None)
 
 
@@ -19,14 +20,18 @@ class Status(enum.IntEnum):
 
 
 class BaseCheckResult(BaseModel):
-    signature: str | None = Field(default=None)
+    signature: tuple | None = Field(default=None)
     status: Status
     message: str | None = Field(default=None)
+    error_message: str | None = Field(default=None)
 
 
 class WebCheckResult(BaseCheckResult):
     endpoint: str | None = Field(default=None)
     latency: float | None = Field(default=None)
+    status_code: int | None = Field(default=None)
+    headers: dict | None = Field(default=None)
+    body: dict | None = Field(default=None)
 
 
 class DBCheckResult(BaseCheckResult):
