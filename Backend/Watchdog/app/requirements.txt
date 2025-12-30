@@ -1,2 +1,6 @@
 pydantic
 httpx
+sqlalchemy
+pymysql
+cryptography
+psycopg[binary]

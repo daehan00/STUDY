@@ -1,14 +1,16 @@
 import random
 
 try:
-    # from .base import BaseWatcher
+    from .base import BaseWatcher
     # from .models import WebCheckResult, Status, BaseConfig, WebConfig
-    from .watchers import WebWatcher, WebConfig
+    from .web_watcher import WebWatcher, WebConfig
+    from .db_watcher import DBWatcher, DBConfig
     from .alert import set_notifiers, set_alert
 except ImportError:
-    # from base import BaseWatcher
+    from base import BaseWatcher
     # from models import WebCheckResult, Status, BaseConfig, WebConfig
-    from watchers import WebWatcher, WebConfig
+    from web_watcher import WebWatcher, WebConfig
+    from db_watcher import DBWatcher, DBConfig
     from alert import set_notifiers, set_alert
 
 
@@ -30,13 +32,39 @@ except ImportError:
 
 
 if __name__ == "__main__":
-    watchers = [WebWatcher(
+    watchers: list[BaseWatcher] = [WebWatcher(
         config=WebConfig(
             name=f"testwatcher({i+1})",
-            endpoint="http://localhost:8000/timeout",
+            endpoint="http://localhost:8000/health",
             latency=2
         )
     ) for i in range(5)]
+
+    watcher = DBWatcher(
+        config=DBConfig(
+            name="database1",
+            dbms="mysql",
+            username="readonly_user",
+            password="readonly_password",
+            host="localhost",
+            port=3306,
+            db_name="testdb"
+        )
+    )
+    watcher1 = DBWatcher(
+        config=DBConfig(
+            name="database2",
+            dbms="postgresql",
+            username="readonly_pg_user",
+            password="readonly_pg_password",
+            host="localhost",
+            port=5432,
+            db_name="test_pgdb"
+        )
+    )
+    watchers.append(watcher)
+    watchers.append(watcher1)
+
     watcher_dict = {watcher.sign: watcher for watcher in watchers}
     print(len(watcher_dict.items()))
 

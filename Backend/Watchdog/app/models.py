@@ -13,6 +13,15 @@ class WebConfig(BaseConfig):
     auth_key: str | None = Field(default=None)
 
 
+class DBConfig(BaseConfig):
+    host: str
+    port: int = Field(default=3306)
+    username: str
+    password: str
+    dbms: str
+    db_name: str
+
+
 class Status(enum.IntEnum):
     normal=0
     latency=1
@@ -36,8 +45,9 @@ class WebCheckResult(BaseCheckResult):
 
 class DBCheckResult(BaseCheckResult):
     dbms: str
-    user: str
-    error_code: int
+    db_name: str
+    username: str
+    error_code: str | None = Field(default=None)
 
 
 class WorkerCheckResult(BaseCheckResult):

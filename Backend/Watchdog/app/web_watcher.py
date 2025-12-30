@@ -1,4 +1,3 @@
-import random
 import httpx
 import time
 from typing import cast
