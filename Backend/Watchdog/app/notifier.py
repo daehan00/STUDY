@@ -7,8 +7,14 @@ except:
 class EmailNotifier(Notifier):
     def send(self, msg: Message) -> None:
         print(f"sending email...\ntitle: {msg.title}\n{msg.body}\n")
+    
+    async def asend(self, msg: Message) -> None:
+        print(f"sending email...\ntitle: {msg.title}\n{msg.body}\n")
 
 
 class SlackNotifier(Notifier):
     def send(self, msg: Message):
+        print(f"sending slack alert...\n{msg.body}\n")
+    
+    async def asend(self, msg: Message):
         print(f"sending slack alert...\n{msg.body}\n")

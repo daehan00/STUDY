@@ -10,3 +10,8 @@
 3. 설계 내용을 피드백을 받은 후 프로젝트를 진행한다.
 4. 피드백을 받은 내용은 기록으로 남긴다.
 5. 핵심 로직 구현 시 AI사용을 자제한다.
+
+### 학습 카테고리
+- httpx library
+- Abstract Class, Protocol
+- async programming

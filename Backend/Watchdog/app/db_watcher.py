@@ -1,5 +1,6 @@
 import urllib.parse
 from sqlalchemy import create_engine, text
+from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
 try:
@@ -14,7 +15,8 @@ class DBWatcher(BaseWatcher):
     def __init__(self, config: DBConfig) -> None:
         super().__init__(config, 1)
         self.config: DBConfig
-        self.engine = create_engine(self._process_dbms(config), pool_timeout=3)
+        self.engine = create_engine(self._make_url(config), pool_timeout=3)
+        self.aengine = create_async_engine(self._make_url(config, False), pool_timeout=3)
         self.result_template = DBCheckResult(
             status=Status.normal,
             dbms=self.config.dbms,
@@ -22,11 +24,14 @@ class DBWatcher(BaseWatcher):
             username=self.config.username,
         )
 
-    def _process_dbms(self, config: DBConfig) -> str:
+    def _make_url(self, config: DBConfig, sync: bool = True) -> str:
         url = ""
         password = urllib.parse.quote_plus(config.password)
         if config.dbms == "mysql":
             url = f"{config.dbms}+pymysql://{config.username}:{password}@{config.host}:{config.port}/{config.db_name}"
+
+            if not sync:
+                url = url.replace("pymysql", "aiomysql")
         
         if config.dbms == "postgresql":
             url = f"{config.dbms}+psycopg://{config.username}:{password}@{config.host}:{config.port}/{config.db_name}"
@@ -40,7 +45,7 @@ class DBWatcher(BaseWatcher):
         check_result = self.result_template.model_copy()
         try:
             with self.engine.connect() as conn:
-                result = conn.execute(text("SELECT 1"))
+                conn.execute(text("SELECT 1"))
 
         except OperationalError as e:
             print(f"운영 에러 발생! 원인:\n{e.orig}") # DB 드라이버의 실제 메시지
@@ -55,6 +60,30 @@ class DBWatcher(BaseWatcher):
         
         print(f"{self.config.name} check")
         return check_result
+
+    async def acheck_server(self) -> DBCheckResult:
+        check_result = self.result_template.model_copy()
+        try:
+            async with self.aengine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
+
+        except OperationalError as e:
+            print(f"운영 에러 발생! 원인:\n{e.orig}") # DB 드라이버의 실제 메시지
+            print(f"에러 코드: {e.code}")           # SQLAlchemy 고유 에러 코드
+            check_result.error_code = str(e.orig)
+            check_result.error_message = str(e.orig)
+            check_result.status = Status.down
+        except SQLAlchemyError as e:
+            check_result.error_message = e.args[0].split('"')[1]
+            check_result.status = Status.down
+            print(f"기타 DB 에러: {check_result.error_message}")
+        
+        print(f"{self.config.name} check")
+        return check_result
+
+    async def cleanup(self) -> None:
+        self.engine.dispose()
+        await self.aengine.dispose()
 
     def _check_result(self, result: BaseCheckResult) -> BaseCheckResult:
         return result
@@ -91,9 +120,7 @@ if __name__ == "__main__":
             db_name="testdb"
         )
     )
-
-    watcher.check_server()
-
+    # watcher.check_server()
 
     watcher1 = DBWatcher(
         config=DBConfig(
@@ -106,5 +133,18 @@ if __name__ == "__main__":
             db_name="test_pgdb"
         )
     )
+    # watcher1.check_server()
 
-    watcher1.check_server()
+    import asyncio
+    async def main():
+        tasks = [w.acheck() for w in [watcher, watcher1]]
+
+        await asyncio.gather(*tasks)
+        print("작업 완료")
+        
+        await asyncio.gather(
+            watcher.cleanup(),
+            watcher1.cleanup()
+        )
+    
+    asyncio.run(main())

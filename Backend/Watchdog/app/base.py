@@ -1,4 +1,5 @@
 import time
+import asyncio
 from abc import ABC, abstractmethod
 from typing import Any, Protocol
 
@@ -41,8 +42,33 @@ class BaseWatcher(ABC):
         except:
             raise NotImplementedError
     
+    async def acheck(self) -> BaseCheckResult:
+        try:
+            for _ in range(self.max_retries):
+                response = await self.acheck_server()
+
+                if response.status == Status.normal:
+                    if not response.signature:
+                        response.signature = self.sign
+                    return self._check_result(response)
+                await asyncio.sleep(self.backoff)
+            
+            if not response.signature: # type: ignore
+                response.signature = self.sign # type: ignore
+            return self._check_result(response) # type: ignore
+        except:
+            raise NotImplementedError
+    
     @abstractmethod
     def check_server(self) -> BaseCheckResult:
+        ...
+    
+    @abstractmethod
+    async def acheck_server(self) -> BaseCheckResult:
+        ...
+    
+    @abstractmethod
+    async def cleanup(self) -> None:
         ...
     
     @abstractmethod
@@ -52,4 +78,7 @@ class BaseWatcher(ABC):
 
 class Notifier(Protocol):
     def send(self, msg: Message):
+        ...
+    
+    async def asend(self, msg: Message):
         ...

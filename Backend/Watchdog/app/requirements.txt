@@ -2,5 +2,7 @@ pydantic
 httpx
 sqlalchemy
 pymysql
+aiomysql
+greenlet
 cryptography
 psycopg[binary]
