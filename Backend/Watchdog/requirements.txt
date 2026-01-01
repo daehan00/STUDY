@@ -6,3 +6,5 @@ aiomysql
 greenlet
 cryptography
 psycopg[binary]
+
+flet[all]
