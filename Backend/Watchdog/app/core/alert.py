@@ -1,11 +1,7 @@
-try:
-    from .base import BaseWatcher, Notifier,BaseCheckResult
-    from .models import Message, Status, MessageGrade
-    from .notifier import EmailNotifier, SlackNotifier
-except ImportError:
-    from base import BaseWatcher, Notifier, BaseCheckResult
-    from models import Message, Status, MessageGrade
-    from notifier import EmailNotifier, SlackNotifier
+from app.core.base import BaseWatcher, Notifier,BaseCheckResult
+from app.core.models import Message, Status, MessageGrade
+from app.core.notifier import EmailNotifier, SlackNotifier
+
 
 def set_notifiers() -> dict[Status, list[Notifier]]:
     return {

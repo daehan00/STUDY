@@ -3,12 +3,8 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
-try:
-    from .base import BaseWatcher
-    from .models import DBCheckResult, Status, DBConfig, BaseCheckResult
-except ImportError:
-    from base import BaseWatcher
-    from models import DBCheckResult, Status, DBConfig, BaseCheckResult
+from app.core.base import BaseWatcher
+from app.core.models import DBCheckResult, Status, DBConfig, BaseCheckResult
 
 
 class DBWatcher(BaseWatcher):

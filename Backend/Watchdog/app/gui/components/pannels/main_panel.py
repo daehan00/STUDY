@@ -1,8 +1,8 @@
 import flet as ft
 
-from components.pannels.server_add import ServerAddView
-from components.pannels.server_list import ServerListView
-from components.pannels.notifications import notification_settings_view
+from app.gui.components.pannels.server_add import ServerAddView
+from app.gui.components.pannels.server_list import ServerListView
+from app.gui.components.pannels.notifications import notification_settings_view
 
 class MainPanel:
     def __init__(self, page: ft.Page):

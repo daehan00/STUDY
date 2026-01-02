@@ -1,14 +1,9 @@
 import flet as ft
-import sys
-from pathlib import Path
 
-# 부모 디렉토리를 sys.path에 추가
-sys.path.append(str(Path(__file__).parent.parent.parent.parent))
-
-from styles.text import main_pannel_title
-from components.server_list import ServerListItem
-from services import ServerService, MonitorService
-from utils.notification_helper import NotificationHelper
+from app.gui.styles.text import main_pannel_title
+from app.gui.components.server_list import ServerListItem
+from app.gui.utils.notification_helper import NotificationHelper
+from app.services import ServerService, MonitorService
 
 
 class ServerListView:

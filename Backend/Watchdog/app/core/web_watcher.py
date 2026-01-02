@@ -2,12 +2,8 @@ import httpx
 import time
 from typing import cast
 
-try:
-    from .base import BaseWatcher
-    from .models import WebCheckResult, Status, WebConfig, BaseCheckResult
-except ImportError:
-    from base import BaseWatcher
-    from models import WebCheckResult, Status, WebConfig, BaseCheckResult
+from app.core.base import BaseWatcher
+from app.core.models import WebCheckResult, Status, WebConfig, BaseCheckResult
 
 
 class WebWatcher(BaseWatcher):

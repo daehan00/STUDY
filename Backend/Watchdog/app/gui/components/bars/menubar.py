@@ -1,13 +1,8 @@
 import flet as ft
 import asyncio
-import sys
-from pathlib import Path
 
-# 부모 디렉토리를 sys.path에 추가
-sys.path.append(str(Path(__file__).parent.parent.parent.parent))
-
-from services import MonitorService
-from utils.notification_helper import NotificationHelper
+from app.services import MonitorService
+from app.gui.utils.notification_helper import NotificationHelper
 
 
 class MenuBar:

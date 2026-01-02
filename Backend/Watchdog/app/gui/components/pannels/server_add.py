@@ -1,17 +1,12 @@
 import flet as ft
-import json
 from typing import Dict, Tuple
-import sys
-from pathlib import Path
 
-# 부모 디렉토리를 sys.path에 추가
-sys.path.append(str(Path(__file__).parent.parent.parent.parent))
+from app.gui.styles.text import hint_style, main_pannel_title
+from app.gui.styles.colors import error_red
+from app.gui.utils.notification_helper import NotificationHelper
 
-from styles.text import hint_style, main_pannel_title
-from styles.colors import error_red
-from services import ServerService
-from config import DBMS_PORTS, SERVER_TYPES
-from utils.notification_helper import NotificationHelper
+from app.services import ServerService
+from app.config import DBMS_PORTS, SERVER_TYPES
 
 
 class ServerAddView:

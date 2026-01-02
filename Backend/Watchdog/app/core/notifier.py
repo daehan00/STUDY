@@ -1,7 +1,4 @@
-try:
-    from .base import Notifier, Message
-except:
-    from base import Notifier, Message
+from app.core.base import Notifier, Message
 
 
 class EmailNotifier(Notifier):

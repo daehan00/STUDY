@@ -1,17 +1,10 @@
 import random
 
-try:
-    from .base import BaseWatcher
-    # from .models import WebCheckResult, Status, BaseConfig, WebConfig
-    from .web_watcher import WebWatcher, WebConfig
-    from .db_watcher import DBWatcher, DBConfig
-    from .alert import set_notifiers, set_alert
-except ImportError:
-    from base import BaseWatcher
-    # from models import WebCheckResult, Status, BaseConfig, WebConfig
-    from web_watcher import WebWatcher, WebConfig
-    from db_watcher import DBWatcher, DBConfig
-    from alert import set_notifiers, set_alert
+from app.core.base import BaseWatcher
+# from .models import WebCheckResult, Status, BaseConfig, WebConfig
+from app.core.web_watcher import WebWatcher, WebConfig
+from app.core.db_watcher import DBWatcher, DBConfig
+from app.core.alert import set_notifiers, set_alert
 
 
 # class TestWatcher(BaseWatcher):

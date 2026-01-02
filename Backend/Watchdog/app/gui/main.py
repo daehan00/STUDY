@@ -1,7 +1,7 @@
 import flet as ft
-from components.pannels.main_panel import MainPanel
-from components.bars.sidebar import Sidebar
-from components.bars.menubar import create_menubar
+from app.gui.components.pannels.main_panel import MainPanel
+from app.gui.components.bars.sidebar import Sidebar
+from app.gui.components.bars.menubar import create_menubar
 
 def main(page: ft.Page):
     page.theme_mode = ft.ThemeMode.LIGHT

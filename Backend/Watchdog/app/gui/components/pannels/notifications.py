@@ -1,6 +1,6 @@
 import flet as ft
 
-from styles.text import main_pannel_title
+from app.gui.styles.text import main_pannel_title
 
 notification_settings_view = ft.Column([
     main_pannel_title("알림 채널 설정"),

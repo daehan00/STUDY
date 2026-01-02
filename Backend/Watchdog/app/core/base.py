@@ -3,10 +3,7 @@ import asyncio
 from abc import ABC, abstractmethod
 from typing import Any, Protocol
 
-try:
-    from .models import Status, BaseCheckResult, BaseConfig, Message
-except ImportError:
-    from models import Status, BaseCheckResult, BaseConfig, Message
+from app.core.models import Status, BaseCheckResult, BaseConfig, Message
 
 
 class BaseWatcher(ABC):
@@ -39,8 +36,8 @@ class BaseWatcher(ABC):
             if not response.signature: # type: ignore
                 response.signature = self.sign # type: ignore
             return self._check_result(response) # type: ignore
-        except:
-            raise NotImplementedError
+        except Exception as e:
+            raise NotImplementedError(e)
     
     async def acheck(self) -> BaseCheckResult:
         try:
@@ -56,8 +53,8 @@ class BaseWatcher(ABC):
             if not response.signature: # type: ignore
                 response.signature = self.sign # type: ignore
             return self._check_result(response) # type: ignore
-        except:
-            raise NotImplementedError
+        except Exception as e:
+            raise NotImplementedError(e)
     
     @abstractmethod
     def check_server(self) -> BaseCheckResult:
