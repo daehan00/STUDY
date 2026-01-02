@@ -93,14 +93,43 @@ class ServerService:
                 return server.copy()
         return None
     
+    def _check_duplicate(self, server_data: Dict) -> Optional[Dict]:
+        """중복 서버 검사"""
+        server_type = server_data.get('server_type')
+        
+        for server in self.servers:
+            if server.get('server_type') != server_type:
+                continue
+            
+            # Web 서버: URL + Endpoint로 비교
+            if server_type == 'web':
+                if (server.get('url') == server_data.get('url') and 
+                    server.get('endpoint') == server_data.get('endpoint')):
+                    return server
+            
+            # DB 서버: Host + Port + DB_NAME으로 비교
+            elif server_type == 'db':
+                if (server.get('HOST') == server_data.get('HOST') and 
+                    server.get('PORT') == server_data.get('PORT') and
+                    server.get('DB_NAME') == server_data.get('DB_NAME')):
+                    return server
+        
+        return None
+    
     def add_server(self, server_data: Dict) -> Dict:
         """새 서버 추가"""
+        # 중복 검사
+        duplicate = self._check_duplicate(server_data)
+        if duplicate:
+            raise ValueError(f"동일한 서버가 이미 존재합니다: {duplicate.get('name', 'Unknown')}")
+        
         # ID와 타임스탬프 자동 생성
         new_server = {
             "id": self._generate_id(),
             "created_at": self._get_timestamp(),
             "updated_at": self._get_timestamp(),
             "status": SERVER_STATUS["ACTIVE"],  # 기본 상태
+            "is_monitoring_enabled": True,  # 기본값: 모니터링 활성화
             **server_data
         }
         

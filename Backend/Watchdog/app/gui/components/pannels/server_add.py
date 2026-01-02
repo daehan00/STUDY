@@ -307,6 +307,10 @@ class ServerAddView:
                 # 폼 초기화
                 self._reset_form()
                 
+            except ValueError as ve:
+                # 중복 서버 에러
+                self.message.value = f"⚠️ {str(ve)}"
+                self.message.color = "#F59E0B"  # 주황색 (경고)
             except Exception as ex:
                 self.message.value = f"❌ 서버 추가 실패: {str(ex)}"
                 self.message.color = error_red
