@@ -44,6 +44,22 @@ class ServerListView:
             self._remove_server(server_data['id'])
         return handler
     
+    def _handle_toggle_monitoring(self, server_data):
+        """모니터링 토글 핸들러"""
+        def handler(e):
+            new_state = e.control.value
+            server_id = server_data['id']
+            
+            # ServerService를 통해 is_monitoring_enabled 업데이트
+            self.server_service.update_server(server_id, {
+                "is_monitoring_enabled": new_state
+            })
+            
+            status_text = "활성화" if new_state else "비활성화"
+            print(f"Server {server_data['name']} monitoring {status_text}")
+        
+        return handler
+    
     def _remove_server(self, server_id: str):
         """서버 제거"""
         success = self.server_service.delete_server(server_id)
@@ -92,6 +108,8 @@ class ServerListView:
                     dbms=server_data.get("dbms"),
                     on_edit=self._handle_edit(server_data),
                     on_delete=self._handle_delete(server_data),
+                    is_monitoring_enabled=server_data.get("is_monitoring_enabled", True),
+                    on_toggle_monitoring=self._handle_toggle_monitoring(server_data),
                 )
                 self.server_list_container.controls.append(item.build())
         

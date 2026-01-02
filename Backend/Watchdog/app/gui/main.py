@@ -1,7 +1,7 @@
 import flet as ft
 from components.pannels.main_panel import MainPanel
 from components.bars.sidebar import Sidebar
-from components.bars.menubar import drag_area
+from components.bars.menubar import create_menubar
 
 def main(page: ft.Page):
     page.theme_mode = ft.ThemeMode.LIGHT
@@ -21,6 +21,9 @@ def main(page: ft.Page):
         main_panel.update_content(view_name)
     
     sidebar = Sidebar(page, on_menu_click=handle_menu_click)
+    
+    # 메뉴바 생성
+    menubar = create_menubar(page)
     
     # 드래그 핸들 (사이드바 크기 조절용)
     def on_pan_update(e: ft.DragUpdateEvent):
@@ -50,7 +53,7 @@ def main(page: ft.Page):
 
     page.add(
         ft.Column([
-            drag_area,
+            menubar,
             ft.Divider(height=1),
             main_content
         ], spacing=0, expand=True)

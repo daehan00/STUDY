@@ -1,78 +1,140 @@
 import flet as ft
+import asyncio
+import sys
+from pathlib import Path
 
-top_menu = ft.Container(
-    content=ft.Row([
-        # # 맨 왼쪽: macOS 스타일 신호등 버튼
-        # ft.Container(
-        #     content=ft.Row([
-        #         close_button,
-        #         minimize_button,
-        #         maximize_button,
-        #     ], spacing=8),
-        #     padding=ft.Padding.only(left=15, right=20)
-        # ),
-        # 왼쪽: 타이틀 영역
-        ft.Container(
-            content=ft.Row([
-                ft.Icon(ft.Icons.MONITOR_HEART, color="#ff6b35", size=24),
-                ft.Text("Watchdog", size=18, weight=ft.FontWeight.BOLD, color="#2d3748"),
-            ], spacing=10),
-            padding=ft.Padding.only(right=15, left=80)
-        ),
-        # 가운데: 검색창
-        ft.Container(
-            content=ft.TextField(
-                hint_text="Search...",
-                border=ft.InputBorder.OUTLINE,
-                dense=True,
-                prefix_icon=ft.Icons.SEARCH,
-                width=350,
-                height=35,
-            ),
-            expand=True,
-            alignment=ft.alignment.Alignment(0,0)
-        ),
-        # 오른쪽: 설정 및 알람 버튼
-        ft.Container(
-            content=ft.Row([
-                ft.Container(
-                    content=ft.Icon(ft.Icons.PLAY_ARROW_ROUNDED, size=25),
-                    width=40,
-                    height=40,
-                    border_radius=5,
-                    alignment=ft.Alignment(0,0),
-                    tooltip="실행",
-                    ink=True,
-                    on_click=lambda _: print("실행"),
-                ),
-                ft.Container(
-                    content=ft.Icon(ft.Icons.SETTINGS, size=20),
-                    width=40,
-                    height=40,
-                    border_radius=5,
-                    alignment=ft.Alignment(0,0),
-                    tooltip="설정",
-                    ink=True,
-                    on_click=lambda _: print("설정"),
-                ),
-                ft.Container(
-                    content=ft.Icon(ft.Icons.NOTIFICATIONS, size=20),
-                    width=40,
-                    height=40,
-                    border_radius=5,
-                    alignment=ft.Alignment(0,0),
-                    tooltip="알림",
-                    ink=True,
-                    on_click=lambda _: print("알림"),
-                ),
-            ], spacing=5),
-            padding=ft.Padding.only(right=15)
-        ),
-    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, vertical_alignment=ft.CrossAxisAlignment.CENTER),
-    bgcolor="#ffffff",
-    padding=ft.Padding.only(left=0, right=15, top=0, bottom=0),
-    height=50
-)
+# 부모 디렉토리를 sys.path에 추가
+sys.path.append(str(Path(__file__).parent.parent.parent.parent))
 
-# 드래그 가능 영역 설정
-drag_area = ft.WindowDragArea(content=top_menu)
+from services import MonitorService
+
+
+class MenuBar:
+    """상단 메뉴바 클래스"""
+    
+    def __init__(self, page: ft.Page):
+        self.page = page
+        self.monitor_service = MonitorService()
+        self.is_monitoring = False
+        self.play_button = None
+        self._initialize_components()
+    
+    def _initialize_components(self):
+        """컴포넌트 초기화"""
+        self.play_button = ft.Container(
+            content=ft.Icon(ft.Icons.PLAY_ARROW_ROUNDED, size=25, color="#10B981"),
+            width=40,
+            height=40,
+            border_radius=5,
+            alignment=ft.Alignment(0, 0),
+            tooltip="모니터링 시작",
+            ink=True,
+            on_click=self._toggle_monitoring,
+        )
+    
+    def _toggle_monitoring(self, e):
+        """모니터링 시작/중지 토글"""
+        if not self.is_monitoring:
+            # 시작
+            asyncio.create_task(self._start_monitoring())
+        else:
+            # 중지
+            asyncio.create_task(self._stop_monitoring())
+    
+    async def _start_monitoring(self):
+        """모니터링 시작"""
+        try:
+            await self.monitor_service.start()
+            self.is_monitoring = True
+            
+            # 버튼 UI 변경 (중지 버튼으로)
+            self.play_button.content = ft.Icon(ft.Icons.STOP, size=25, color="#EF4444")
+            self.play_button.tooltip = "모니터링 중지"
+            self.play_button.update()
+            
+            print("✅ Monitoring started successfully")
+        except Exception as ex:
+            print(f"❌ Failed to start monitoring: {ex}")
+    
+    async def _stop_monitoring(self):
+        """모니터링 중지"""
+        try:
+            await self.monitor_service.stop()
+            self.is_monitoring = False
+            
+            # 버튼 UI 변경 (실행 버튼으로)
+            self.play_button.content = ft.Icon(ft.Icons.PLAY_ARROW_ROUNDED, size=25, color="#10B981")
+            self.play_button.tooltip = "모니터링 시작"
+            self.play_button.update()
+            
+            print("✅ Monitoring stopped successfully")
+        except Exception as ex:
+            print(f"❌ Failed to stop monitoring: {ex}")
+    
+    def build(self):
+        """메뉴바 빌드"""
+        top_menu = ft.Container(
+            content=ft.Row([
+                # 왼쪽: 타이틀 영역
+                ft.Container(
+                    content=ft.Row([
+                        ft.Icon(ft.Icons.MONITOR_HEART, color="#ff6b35", size=24),
+                        ft.Text("Watchdog", size=18, weight=ft.FontWeight.BOLD, color="#2d3748"),
+                    ], spacing=10),
+                    padding=ft.Padding.only(right=15, left=80)
+                ),
+                # 가운데: 검색창
+                ft.Container(
+                    content=ft.TextField(
+                        hint_text="Search...",
+                        border=ft.InputBorder.OUTLINE,
+                        dense=True,
+                        prefix_icon=ft.Icons.SEARCH,
+                        width=350,
+                        height=35,
+                    ),
+                    expand=True,
+                    alignment=ft.alignment.Alignment(0, 0)
+                ),
+                # 오른쪽: 설정 및 알람 버튼
+                ft.Container(
+                    content=ft.Row([
+                        self.play_button,
+                        ft.Container(
+                            content=ft.Icon(ft.Icons.SETTINGS, size=20),
+                            width=40,
+                            height=40,
+                            border_radius=5,
+                            alignment=ft.Alignment(0, 0),
+                            tooltip="설정",
+                            ink=True,
+                            on_click=lambda _: print("설정"),
+                        ),
+                        ft.Container(
+                            content=ft.Icon(ft.Icons.NOTIFICATIONS, size=20),
+                            width=40,
+                            height=40,
+                            border_radius=5,
+                            alignment=ft.Alignment(0, 0),
+                            tooltip="알림",
+                            ink=True,
+                            on_click=lambda _: print("알림"),
+                        ),
+                    ], spacing=5),
+                    padding=ft.Padding.only(right=15)
+                ),
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+            bgcolor="#ffffff",
+            padding=ft.Padding.only(left=0, right=15, top=0, bottom=0),
+            height=50
+        )
+        
+        # 드래그 가능 영역 설정
+        return ft.WindowDragArea(content=top_menu)
+
+
+# 뷰 생성 함수 (하위 호환성)
+def create_menubar(page: ft.Page):
+    """MenuBar 인스턴스 생성 및 빌드"""
+    menubar = MenuBar(page)
+    return menubar.build()

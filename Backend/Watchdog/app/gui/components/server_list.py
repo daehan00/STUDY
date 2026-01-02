@@ -10,22 +10,26 @@ class ServerListItem:
         server_type: str,
         name: str,
         status: str = "active",
+        is_monitoring_enabled: bool = True,
         url: Optional[str] = None,
         host: Optional[str] = None,
         port: Optional[str] = None,
         dbms: Optional[str] = None,
         on_edit=None,
         on_delete=None,
+        on_toggle_monitoring=None,
     ):
         self.server_type = server_type
         self.name = name
         self.status = status
+        self.is_monitoring_enabled = is_monitoring_enabled
         self.url = url
         self.host = host
         self.port = port
         self.dbms = dbms
         self.on_edit = on_edit
         self.on_delete = on_delete
+        self.on_toggle_monitoring = on_toggle_monitoring
     
     def _get_status_color(self) -> str:
         """상태에 따른 색상 반환"""
@@ -113,6 +117,14 @@ class ServerListItem:
                         ],
                         spacing=4,
                         expand=True,
+                    ),
+                    ft.Switch(
+                        value=self.is_monitoring_enabled,
+                        on_change=self.on_toggle_monitoring,
+                        active_color="#10B981",
+                        inactive_thumb_color="#EF4444",
+                        tooltip="모니터링 활성화/비활성화",
+                        scale=0.8,
                     ),
                     # 액션 버튼
                     ft.Row(
