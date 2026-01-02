@@ -8,12 +8,14 @@ sys.path.append(str(Path(__file__).parent.parent.parent.parent))
 from styles.text import main_pannel_title
 from components.server_list import ServerListItem
 from services import ServerService
+from utils.notification_helper import NotificationHelper
 
 
 class ServerListView:
     """서버 목록 뷰 클래스"""
     
-    def __init__(self):
+    def __init__(self, page: ft.Page):
+        self.page = page
         self.server_service = ServerService()
         self.server_list_container: ft.Column
         self._initialize_components()
@@ -41,7 +43,20 @@ class ServerListView:
         def handler(e):
             print(f"Delete server: {server_data['name']}")
             # TODO: 삭제 확인 다이얼로그 표시
-            self._remove_server(server_data['id'])
+            success = self._remove_server(server_data['id'])
+            
+            # 알림 표시
+            if self.page:
+                if success:
+                    NotificationHelper.success(
+                        self.page, 
+                        f"'{server_data['name']}' 서버가 삭제되었습니다"
+                    )
+                else:
+                    NotificationHelper.error(
+                        self.page, 
+                        "서버 삭제에 실패했습니다"
+                    )
         return handler
     
     def _handle_toggle_monitoring(self, server_data):
@@ -153,7 +168,7 @@ class ServerListView:
         ], expand=True, align=ft.Alignment(0, -1), scroll=ft.ScrollMode.AUTO)
 
 
-# 뷰 인스턴스 생성 및 export
-_server_list_view_instance = ServerListView()
-server_list_view = _server_list_view_instance.build()
-server_list_view_instance = _server_list_view_instance  # 인스턴스 접근용
+# # 뷰 인스턴스 생성 및 export
+# _server_list_view_instance = ServerListView()
+# server_list_view = _server_list_view_instance.build()
+# server_list_view_instance = _server_list_view_instance  # 인스턴스 접근용

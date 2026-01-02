@@ -1,13 +1,19 @@
 import flet as ft
 
-from components.pannels.server_add import server_add_view
-from components.pannels.server_list import server_list_view, server_list_view_instance
+from components.pannels.server_add import ServerAddView
+from components.pannels.server_list import ServerListView
 from components.pannels.notifications import notification_settings_view
 
 class MainPanel:
     def __init__(self, page: ft.Page):
         self.page = page
         self.container = None
+        # ServerAddView에 page 전달
+        self.server_add_view_instance = ServerAddView(page)
+        self.server_add_view = self.server_add_view_instance.build()
+        # ServerListView에 page 전달
+        self.server_list_view_instance = ServerListView(page)
+        self.server_list_view = self.server_list_view_instance.build()
         
     def build(self):
         self.container = ft.Container(
@@ -43,13 +49,13 @@ class MainPanel:
     
     def _get_add_server_view(self):
         """서버 추가하기 화면"""
-        return server_add_view
+        return self.server_add_view
     
     def _get_server_list_view(self):
         """서버 목록보기 화면"""
         # 뷰 전환 시 서버 목록 새로고침
-        server_list_view_instance.refresh()
-        return server_list_view
+        self.server_list_view_instance.refresh()
+        return self.server_list_view
     
     def _get_notification_settings_view(self):
         """알림 채널 설정 화면"""

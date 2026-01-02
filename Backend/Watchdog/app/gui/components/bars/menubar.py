@@ -7,6 +7,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent.parent.parent))
 
 from services import MonitorService
+from utils.notification_helper import NotificationHelper
 
 
 class MenuBar:
@@ -51,17 +52,24 @@ class MenuBar:
             self.play_button.content = ft.Icon(ft.Icons.STOP, size=25, color="#EF4444")
             self.play_button.tooltip = "모니터링 중지"
             self.play_button.update()
-            
+            # 성공 알림
+            NotificationHelper.success(self.page, "모니터링이 시작되었습니다")
             print("✅ Monitoring started successfully")
+            
+        except ValueError as ve:
+            # 서버 0개 에러
+            NotificationHelper.warning(self.page, str(ve), duration=4000)
+            print(f"⚠️  {ve}")
         except Exception as ex:
-            print(f"❌ Failed to start monitoring: {ex}")
+            # 기타 에러
+            NotificationHelper.error(self.page, f"모니터링 시작 실패: {str(ex)}")
     
     async def _stop_monitoring(self):
         """모니터링 중지"""
         try:
             await self.monitor_service.stop()
             self.is_monitoring = False
-            
+            NotificationHelper.info(self.page, "모니터링이 중지되었습니다")
             # 버튼 UI 변경 (실행 버튼으로)
             self.play_button.content = ft.Icon(ft.Icons.PLAY_ARROW_ROUNDED, size=25, color="#10B981")
             self.play_button.tooltip = "모니터링 시작"
@@ -69,7 +77,7 @@ class MenuBar:
             
             print("✅ Monitoring stopped successfully")
         except Exception as ex:
-            print(f"❌ Failed to stop monitoring: {ex}")
+            NotificationHelper.error(self.page, f"모니터링 중지 실패: {str(ex)}")
     
     def build(self):
         """메뉴바 빌드"""

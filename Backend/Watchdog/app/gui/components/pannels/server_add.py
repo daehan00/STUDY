@@ -11,12 +11,14 @@ from styles.text import hint_style, main_pannel_title
 from styles.colors import error_red
 from services import ServerService
 from config import DBMS_PORTS, SERVER_TYPES
+from utils.notification_helper import NotificationHelper
 
 
 class ServerAddView:
     """서버 추가 뷰 클래스"""
     
-    def __init__(self):
+    def __init__(self, page: ft.Page):
+        self.page = page
         self.server_service = ServerService()
         self.radio_container: ft.Container
         self.radio_error_text: ft.Text
@@ -303,6 +305,12 @@ class ServerAddView:
                 self.message.value += f"서버 ID: {added_server.get('id')}\n"
                 self.message.value += f"서버 타입: {added_server.get('server_type')}\n"
                 self.message.color = "#10B981"  # 녹색
+                # 알림 표시 (page가 있는 경우)
+                if self.page:
+                    NotificationHelper.success(
+                        self.page, 
+                        f"'{added_server.get('name')}' 서버가 추가되었습니다"
+                    )
                 
                 # 폼 초기화
                 self._reset_form()
@@ -311,11 +319,22 @@ class ServerAddView:
                 # 중복 서버 에러
                 self.message.value = f"⚠️ {str(ve)}"
                 self.message.color = "#F59E0B"  # 주황색 (경고)
+                
+                if self.page:
+                    NotificationHelper.warning(self.page, str(ve))
+                    
             except Exception as ex:
                 self.message.value = f"❌ 서버 추가 실패: {str(ex)}"
                 self.message.color = error_red
+                
+                if self.page:
+                    NotificationHelper.error(self.page, f"서버 추가 실패: {str(ex)}")
         else:
             self.message.value = "필수 입력 항목을 모두 입력해주세요."
+            self.message.color = error_red
+            
+            if self.page:
+                NotificationHelper.warning(self.page, "필수 입력 항목을 확인해주세요")
             self.message.color = error_red
         
         self.message.update()
@@ -345,6 +364,6 @@ class ServerAddView:
         ], expand=True, align=ft.Alignment(0, -1), scroll=ft.ScrollMode.AUTO)
 
 
-# 뷰 인스턴스 생성
-_server_add_view_instance = ServerAddView()
-server_add_view = _server_add_view_instance.build()
+# # 뷰 인스턴스 생성
+# _server_add_view_instance = ServerAddView()
+# server_add_view = _server_add_view_instance.build()
