@@ -103,7 +103,8 @@ class Sidebar:
                                 on_click=lambda _: self.on_menu_click("server_list") if self.on_menu_click else None
                             ),
                         ],
-                        expand=True
+                        expand=True,
+                        expanded=True
                     ),
                     # 알림 관리
                     ft.ExpansionTile(
@@ -118,7 +119,8 @@ class Sidebar:
                                 on_click=lambda _: self.on_menu_click("notification_settings") if self.on_menu_click else None
                             ),
                         ],
-                        expand=True
+                        expand=True,
+                        expanded=True
                     ),
                 ], scroll=ft.ScrollMode.AUTO, expand=True),
                 expand=True

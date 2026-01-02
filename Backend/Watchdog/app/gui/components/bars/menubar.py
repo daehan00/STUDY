@@ -8,11 +8,12 @@ from app.gui.utils.notification_helper import NotificationHelper
 class MenuBar:
     """상단 메뉴바 클래스"""
     
-    def __init__(self, page: ft.Page):
+    def __init__(self, page: ft.Page, handler):
         self.page = page
         self.monitor_service = MonitorService()
         self.is_monitoring = False
-        self.play_button = None
+        self.play_button: ft.Container
+        self.handler = handler
         self._initialize_components()
     
     def _initialize_components(self):
@@ -84,7 +85,9 @@ class MenuBar:
                         ft.Icon(ft.Icons.MONITOR_HEART, color="#ff6b35", size=24),
                         ft.Text("Watchdog", size=18, weight=ft.FontWeight.BOLD, color="#2d3748"),
                     ], spacing=10),
-                    padding=ft.Padding.only(right=15, left=80)
+                    padding=ft.Padding.only(right=15, left=80),
+                    on_click=self.handler,
+                    on_hover=lambda e: setattr(e.control, "bgcolor", "#f3f4f6" if e.data == "true" else None) or e.control.update(),
                 ),
                 # 가운데: 검색창
                 ft.Container(
@@ -137,7 +140,7 @@ class MenuBar:
 
 
 # 뷰 생성 함수 (하위 호환성)
-def create_menubar(page: ft.Page):
+def create_menubar(page: ft.Page, handler):
     """MenuBar 인스턴스 생성 및 빌드"""
-    menubar = MenuBar(page)
+    menubar = MenuBar(page, handler)
     return menubar.build()

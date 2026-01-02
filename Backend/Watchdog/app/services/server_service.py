@@ -1,5 +1,4 @@
 import json
-import os
 import uuid
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -31,10 +30,24 @@ class ServerService:
         self.data_version = DATA_VERSION
         
         self.servers: List[Dict] = []
+        self.listeners = []  # 리스너 목록
         self._ensure_data_file()
         self.load()
         self._initialized = True
     
+    def add_listener(self, callback):
+        """데이터 변경 리스너 추가"""
+        if callback not in self.listeners:
+            self.listeners.append(callback)
+            
+    def _notify_listeners(self, event_type: str, server_data: Dict):
+        """리스너들에게 변경 알림"""
+        for listener in self.listeners:
+            try:
+                listener(event_type, server_data)
+            except Exception as e:
+                print(f"[ERROR] Error in server service listener: {e}")
+
     def _ensure_data_file(self) -> None:
         """데이터 파일이 존재하는지 확인하고 없으면 생성"""
         if not self.data_file.exists():
@@ -109,9 +122,10 @@ class ServerService:
             
             # DB 서버: Host + Port + DB_NAME으로 비교
             elif server_type == 'db':
-                if (server.get('HOST') == server_data.get('HOST') and 
-                    server.get('PORT') == server_data.get('PORT') and
-                    server.get('DB_NAME') == server_data.get('DB_NAME')):
+                if (server.get('DBMS') == server_data.get('dbms') and
+                    server.get('HOST') == server_data.get('host') and 
+                    server.get('PORT') == server_data.get('port') and
+                    server.get('DB_NAME') == server_data.get('db_name')):
                     return server
         
         return None
@@ -136,6 +150,7 @@ class ServerService:
         self.servers.append(new_server)
         self.save()
         
+        self._notify_listeners("add", new_server)
         return new_server.copy()
     
     def update_server(self, server_id: str, updates: Dict) -> Optional[Dict]:
@@ -148,17 +163,23 @@ class ServerService:
                 self.servers[i]["updated_at"] = self._get_timestamp()
                 
                 self.save()
-                return self.servers[i].copy()
+                
+                updated_server = self.servers[i].copy()
+                self._notify_listeners("update", updated_server)
+                return updated_server
         
         return None
     
     def delete_server(self, server_id: str) -> bool:
         """서버 삭제"""
         initial_length = len(self.servers)
+        deleted_server = next((s for s in self.servers if s.get("id") == server_id), None)
         self.servers = [s for s in self.servers if s.get("id") != server_id]
         
         if len(self.servers) < initial_length:
             self.save()
+            if deleted_server:
+                self._notify_listeners("delete", deleted_server)
             return True
         
         return False

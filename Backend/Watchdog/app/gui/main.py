@@ -20,10 +20,13 @@ def main(page: ft.Page):
     def handle_menu_click(view_name: str):
         main_panel.update_content(view_name)
     
+    def handel_title_click(_):
+        main_panel.update_content("home")
+    
     sidebar = Sidebar(page, on_menu_click=handle_menu_click)
     
     # 메뉴바 생성
-    menubar = create_menubar(page)
+    menubar = create_menubar(page, handel_title_click)
     
     # 드래그 핸들 (사이드바 크기 조절용)
     def on_pan_update(e: ft.DragUpdateEvent):

@@ -1,17 +1,12 @@
 import asyncio
 import time
-import sys
-from pathlib import Path
 from typing import Any, Dict, Set, Optional, Tuple
 
-# 부모 디렉토리를 sys.path에 추가
-sys.path.append(str(Path(__file__).parent.parent))
-
-from services.server_service import ServerService
-from core.base import BaseWatcher
-from core.web_watcher import WebWatcher
-from core.db_watcher import DBWatcher
-from core.models import WebConfig, DBConfig, Status
+from app.services.server_service import ServerService
+from app.core.base import BaseWatcher
+from app.core.web_watcher import WebWatcher
+from app.core.db_watcher import DBWatcher
+from app.core.models import WebConfig, DBConfig, Status
 
 
 class MonitorService:
@@ -34,6 +29,7 @@ class MonitorService:
         self.server_service = ServerService()
         self.check_interval = 30  # 30초마다 체크
         self.main_task: Optional[asyncio.Task] = None
+        self.semaphore: asyncio.Semaphore = asyncio.Semaphore(5)
         self._last_server_ids: Set[str] = set()
         
         # 메모리 캐시 및 I/O 최적화
@@ -49,8 +45,52 @@ class MonitorService:
         # 이벤트 리스너
         self.listeners = []
         
+        # ServerService 변경 감지 리스너 등록
+        self.server_service.add_listener(self._on_server_data_changed)
+        
         self._initialized = True
     
+    def _on_server_data_changed(self, event_type: str, server_data: Dict):
+        """서버 데이터 변경 시 호출되는 콜백"""
+        if not self.is_running:
+            return
+
+        server_id = server_data['id']
+        server_name = server_data.get('name', 'Unknown')
+        is_enabled = server_data.get('is_monitoring_enabled', True)
+
+        print(f"[INFO] Server data changed: {event_type} - {server_name} (Enabled: {is_enabled})")
+
+        if event_type == "delete":
+            if server_id in self.watchers:
+                del self.watchers[server_id]
+                if server_id in self.status_cache:
+                    del self.status_cache[server_id]
+                print(f"[INFO] Removed watcher for deleted server: {server_name}")
+
+        elif event_type == "add":
+            if is_enabled and server_id not in self.watchers:
+                watcher = self._create_watcher(server_data)
+                if watcher:
+                    self.watchers[server_id] = watcher
+                    self.status_cache[server_id] = server_data.get('status', 'active')
+                    print(f"[INFO] Added watcher for new server: {server_name}")
+
+        elif event_type == "update":
+            # 모니터링 비활성화된 경우 제거
+            if not is_enabled:
+                if server_id in self.watchers:
+                    del self.watchers[server_id]
+                    print(f"[INFO] Removed watcher (disabled): {server_name}")
+            else:
+                # 활성화 상태인 경우 Watcher 재생성 및 교체
+                # (설정이 변경되었을 수 있으므로 무조건 재생성)
+                watcher = self._create_watcher(server_data)
+                if watcher:
+                    self.watchers[server_id] = watcher
+                    # 상태 캐시는 유지하거나 초기화 (여기서는 유지)
+                    print(f"[INFO] Updated watcher for server: {server_name}")
+
     def add_listener(self, callback):
         """상태 변경 리스너 추가"""
         if callback not in self.listeners:
@@ -119,6 +159,14 @@ class MonitorService:
             except Exception as e:
                 print(f"[ERROR] Error while cancelling monitor task: {e}")
         
+        # Watcher 리소스 정리 (DB 연결 종료 등)
+        for watcher in self.watchers.values():
+            if hasattr(watcher, 'cleanup'):
+                try:
+                    await watcher.cleanup()
+                except Exception as e:
+                    print(f"[ERROR] Failed to cleanup watcher: {e}")
+
         self.watchers.clear()
         self.status_cache.clear()
         self.dirty_servers.clear()
@@ -238,7 +286,8 @@ class MonitorService:
                     ]
                     
                     # 모든 체크 결과 수집 (예외도 포함)
-                    results = await asyncio.gather(*tasks, return_exceptions=True)
+                    async with self.semaphore:
+                        results = await asyncio.gather(*tasks, return_exceptions=True)
                     
                     # 실패한 체크 확인
                     failed_checks = sum(1 for r in results if isinstance(r, Exception))

@@ -50,7 +50,7 @@ def maintenance_mode():
 @app.get("/unstable")
 def unstable_service():
     """Simulates a flaky service that fails 50% of the time."""
-    if random.choice([True, False]):
+    if random.randint(1,10) >= 2:
         raise HTTPException(status_code=500, detail="Random failure occurred")
     return {"status": "lucky", "message": "Request succeeded"}
 

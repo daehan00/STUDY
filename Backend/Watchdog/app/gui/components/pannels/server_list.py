@@ -2,6 +2,7 @@ import flet as ft
 
 from app.gui.styles.text import main_pannel_title
 from app.gui.components.server_list import ServerListItem
+from app.gui.components.popup import create_edit_popup
 from app.gui.utils.notification_helper import NotificationHelper
 from app.services import ServerService, MonitorService
 
@@ -34,8 +35,39 @@ class ServerListView:
     def _handle_edit(self, server_data):
         """서버 수정 핸들러"""
         def handler(e):
-            print(f"Edit server: {server_data['name']}")
-            # TODO: 수정 다이얼로그 표시
+            print(f"Edit handler called for {server_data.get('name')}")
+            
+            def on_save(updated_data):
+                print(f"Saving data: {updated_data}")
+                # 서버 정보 업데이트
+                self.server_service.update_server(server_data['id'], updated_data)
+                
+                # UI 업데이트
+                self._update_server_list()
+                
+                # 팝업 닫기
+                self.page.pop_dialog()
+                self.page.update()
+                
+                # 알림
+                NotificationHelper.success(self.page, f"'{updated_data['name']}' 서버 정보가 수정되었습니다.")
+
+            def on_cancel(e):
+                print("Cancel clicked")
+                self.page.pop_dialog()
+
+            # 팝업 생성 및 표시
+            print("Creating popup")
+            popup = create_edit_popup(
+                server_data=server_data,
+                on_save=on_save,
+                on_cancel=on_cancel
+            )
+            
+            self.page.show_dialog(popup)
+            popup.open = True
+            self.page.update()
+            
         return handler
     
     def _handle_delete(self, server_data):
