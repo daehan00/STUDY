@@ -74,8 +74,35 @@ class ServerListItem:
             )
         ]
     
+    def update_status(self, new_status: str):
+        """상태 업데이트"""
+        self.status = new_status
+        
+        # 컨트롤이 페이지에 연결되어 있을 때만 업데이트
+        if hasattr(self, 'status_text_control') and self.status_text_control.page:
+            self.status_text_control.value = self._get_status_text()
+            self.status_text_control.update()
+            
+        if hasattr(self, 'status_container_control') and self.status_container_control.page:
+            self.status_container_control.bgcolor = self._get_status_color()
+            self.status_container_control.update()
+
     def build(self) -> ft.Container:
         """리스트 아이템 UI 빌드"""
+        self.status_text_control = ft.Text(
+            self._get_status_text(),
+            size=10,
+            color="white",
+            weight=ft.FontWeight.BOLD,
+        )
+        
+        self.status_container_control = ft.Container(
+            content=self.status_text_control,
+            bgcolor=self._get_status_color(),
+            padding=ft.Padding.symmetric(horizontal=8, vertical=2),
+            border_radius=12,
+        )
+
         return ft.Container(
             content=ft.Row(
                 controls=[
@@ -99,17 +126,7 @@ class ServerListItem:
                                         weight=ft.FontWeight.BOLD,
                                         color="#1F2937"
                                     ),
-                                    ft.Container(
-                                        content=ft.Text(
-                                            self._get_status_text(),
-                                            size=10,
-                                            color="white",
-                                            weight=ft.FontWeight.BOLD,
-                                        ),
-                                        bgcolor=self._get_status_color(),
-                                        padding=ft.Padding.symmetric(horizontal=8, vertical=2),
-                                        border_radius=12,
-                                    ),
+                                    self.status_container_control,
                                 ],
                                 spacing=10,
                             ),

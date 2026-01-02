@@ -99,7 +99,7 @@ class NotificationHelper:
             ),
             bgcolor=config["bg_color"],
             border_radius=8,
-            padding=ft.padding.symmetric(horizontal=20, vertical=14),
+            padding=ft.Padding.symmetric(horizontal=20, vertical=14),
             shadow=ft.BoxShadow(
                 spread_radius=1,
                 blur_radius=10,
@@ -116,7 +116,7 @@ class NotificationHelper:
             action=action,
             on_action=action_callback,
             behavior=ft.SnackBarBehavior.FIXED,  # 떠있는 형태
-            margin=ft.margin.only(bottom=20, left=20, right=20),
+            margin=ft.Margin.only(bottom=20, left=20, right=20),
             elevation=0,  # 기본 그림자 제거 (커스텀 그림자 사용)
         )
         

@@ -2,7 +2,7 @@ import asyncio
 import time
 import sys
 from pathlib import Path
-from typing import Dict, Set, Optional, Tuple
+from typing import Any, Dict, Set, Optional, Tuple
 
 # 부모 디렉토리를 sys.path에 추가
 sys.path.append(str(Path(__file__).parent.parent))
@@ -46,8 +46,29 @@ class MonitorService:
         # 동기화용 Lock
         self.watchers_lock = asyncio.Lock()
         
+        # 이벤트 리스너
+        self.listeners = []
+        
         self._initialized = True
     
+    def add_listener(self, callback):
+        """상태 변경 리스너 추가"""
+        if callback not in self.listeners:
+            self.listeners.append(callback)
+            
+    def remove_listener(self, callback):
+        """상태 변경 리스너 제거"""
+        if callback in self.listeners:
+            self.listeners.remove(callback)
+            
+    def _notify_listeners(self, server_id: str, status: str):
+        """리스너들에게 상태 변경 알림"""
+        for listener in self.listeners:
+            try:
+                listener(server_id, status)
+            except Exception as e:
+                print(f"[ERROR] Error in listener: {e}")
+
     async def start(self):
         """모니터링 시작"""
         if self.is_running:
@@ -157,7 +178,7 @@ class MonitorService:
             if server_type == 'web':
                 config = WebConfig(
                     name=server_name,
-                    endpoint=f"{server_data.get('url', '')}{server_data.get('endpoint', '')}",
+                    endpoint=f"{server_data.get('url', '')}{f":{server_data.get('port')}" if server_data.get('port') else ""}{server_data.get('endpoint', '')}",
                     latency=int(server_data.get('latency', 30)),
                     auth_key=server_data.get('auth_key')
                 )
@@ -166,12 +187,12 @@ class MonitorService:
             elif server_type == 'db':
                 config = DBConfig(
                     name=server_name,
-                    host=server_data.get('HOST', server_data.get('host', 'localhost')),
-                    port=int(server_data.get('PORT', server_data.get('port', 5432))),
-                    username=server_data.get('USERNAME', server_data.get('username', '')),
-                    password=server_data.get('PASSWORD', server_data.get('password', '')),
-                    dbms=server_data.get('DBMS', server_data.get('dbms', 'postgresql')),
-                    db_name=server_data.get('DB_NAME', server_data.get('db_name', ''))
+                    host=server_data.get('host', server_data.get('host', 'localhost')),
+                    port=int(server_data.get('poert', server_data.get('port', 5432))),
+                    username=server_data.get('username', server_data.get('username', '')),
+                    password=server_data.get('password', server_data.get('password', '')),
+                    dbms=server_data.get('dbms', server_data.get('dbms', 'postgresql')),
+                    db_name=server_data.get('db_name', server_data.get('db_name', ''))
                 )
                 return DBWatcher(config)
             
@@ -194,60 +215,68 @@ class MonitorService:
         consecutive_errors = 0
         max_consecutive_errors = 5
         
-        while self.is_running:
-            try:
-                # 서버 목록 동기화
-                await self._sync_servers()
-                
-                # Watchers의 스냅샷 획득 (동기화 이슈 방지)
-                async with self.watchers_lock:
-                    current_watchers = dict(self.watchers)
-                
-                # 서버가 0개인 경우 대기만 수행
-                if not current_watchers:
-                    # print("[DEBUG] No servers to monitor, waiting...")  # 과도한 로그 방지
+        try:
+            while self.is_running:
+                try:
+                    # 서버 목록 동기화
+                    await self._sync_servers()
+                    
+                    # Watchers의 스냅샷 획득 (동기화 이슈 방지)
+                    async with self.watchers_lock:
+                        current_watchers = dict(self.watchers)
+                    
+                    # 서버가 0개인 경우 대기만 수행
+                    if not current_watchers:
+                        # print("[DEBUG] No servers to monitor, waiting...")  # 과도한 로그 방지
+                        await asyncio.sleep(self.check_interval)
+                        continue
+                    
+                    # 스냅샷으로 체크 수행 (Lock 없이)
+                    tasks = [
+                        self._check_server(server_id, watcher)
+                        for server_id, watcher in current_watchers.items()
+                    ]
+                    
+                    # 모든 체크 결과 수집 (예외도 포함)
+                    results = await asyncio.gather(*tasks, return_exceptions=True)
+                    
+                    # 실패한 체크 확인
+                    failed_checks = sum(1 for r in results if isinstance(r, Exception))
+                    if failed_checks > 0:
+                        print(f"[WARNING] {failed_checks}/{len(tasks)} server checks failed")
+                    
+                    # 조건부 저장
+                    await self._conditional_save()
+                    
+                    # 에러 카운터 리셋 (정상 실행 완료)
+                    consecutive_errors = 0
+                    
+                    # 다음 체크까지 대기
                     await asyncio.sleep(self.check_interval)
-                    continue
-                
-                # 스냅샷으로 체크 수행 (Lock 없이)
-                tasks = [
-                    self._check_server(server_id, watcher)
-                    for server_id, watcher in current_watchers.items()
-                ]
-                
-                # 모든 체크 결과 수집 (예외도 포함)
-                results = await asyncio.gather(*tasks, return_exceptions=True)
-                
-                # 실패한 체크 확인
-                failed_checks = sum(1 for r in results if isinstance(r, Exception))
-                if failed_checks > 0:
-                    print(f"[WARNING] {failed_checks}/{len(tasks)} server checks failed")
-                
-                # 조건부 저장
-                await self._conditional_save()
-                
-                # 에러 카운터 리셋 (정상 실행 완료)
-                consecutive_errors = 0
-                
-                # 다음 체크까지 대기
-                await asyncio.sleep(self.check_interval)
-                
-            except asyncio.CancelledError:
-                print("[INFO] Monitor loop cancelled")
-                break
-            except Exception as e:
-                consecutive_errors += 1
-                print(f"[ERROR] Monitor loop error ({consecutive_errors}/{max_consecutive_errors}): {type(e).__name__}: {e}")
-                
-                # 연속 에러가 너무 많으면 모니터링 중지
-                if consecutive_errors >= max_consecutive_errors:
-                    print(f"[CRITICAL] Too many consecutive errors. Stopping monitoring.")
-                    self.is_running = False
+                    
+                except asyncio.CancelledError:
+                    print("[INFO] Monitor loop cancelled")
                     break
-                
-                # 백오프 전략: 에러 횟수에 비례하여 대기 시간 증가
-                backoff_time = min(self.check_interval * consecutive_errors, 300)  # 최대 5분
-                await asyncio.sleep(backoff_time)
+                except Exception as e:
+                    consecutive_errors += 1
+                    print(f"[ERROR] Monitor loop error ({consecutive_errors}/{max_consecutive_errors}): {type(e).__name__}: {e}")
+                    
+                    # 연속 에러가 너무 많으면 모니터링 중지
+                    if consecutive_errors >= max_consecutive_errors:
+                        print(f"[CRITICAL] Too many consecutive errors. Stopping monitoring.")
+                        self.is_running = False
+                        break
+                    
+                    # 백오프 전략: 에러 횟수에 비례하여 대기 시간 증가
+                    backoff_time = min(self.check_interval * consecutive_errors, 300)  # 최대 5분
+                    await asyncio.sleep(backoff_time)
+        finally:
+            # 루프 종료 시 (에러, 취소 등) 상태 저장
+            print("[INFO] Monitor loop finished. Saving final states...")
+            try:
+                await self._save_states()
+            except Exception as e:
+                print(f"[ERROR] Failed to save states on loop exit: {e}")
     
     async def _sync_servers(self):
         """서버 목록 동기화 (안전하게)"""
@@ -300,7 +329,7 @@ class MonitorService:
             print(f"[ERROR] Failed to sync servers: {e}")
             # 동기화 실패해도 기존 watchers는 유지
     
-    async def _check_server(self, server_id: str, watcher: BaseWatcher) -> Tuple[str, Optional[any]]:
+    async def _check_server(self, server_id: str, watcher: BaseWatcher) -> Tuple[str, Optional[Any]]:
         """개별 서버 헬스체크"""
         try:
             result = await watcher.acheck()
@@ -320,19 +349,32 @@ class MonitorService:
                 self.status_cache[server_id] = new_status
                 self.dirty_servers.add(server_id)
                 print(f"[INFO] Server {server_id} ({watcher.config.name}) status changed: {old_status} -> {new_status}")
+                self._notify_listeners(server_id, new_status)
             
             return (server_id, result)
             
         except asyncio.TimeoutError:
             print(f"[ERROR] Timeout checking server {server_id} ({watcher.config.name})")
             # 타임아웃 시 inactive로 처리
-            self.status_cache[server_id] = "inactive"
-            self.dirty_servers.add(server_id)
+            old_status = self.status_cache.get(server_id)
+            new_status = "inactive"
+            
+            if old_status != new_status:
+                self.status_cache[server_id] = new_status
+                self.dirty_servers.add(server_id)
+                self._notify_listeners(server_id, new_status)
+                
             return (server_id, None)
         except ConnectionError as e:
             print(f"[ERROR] Connection error for server {server_id} ({watcher.config.name}): {e}")
-            self.status_cache[server_id] = "inactive"
-            self.dirty_servers.add(server_id)
+            old_status = self.status_cache.get(server_id)
+            new_status = "inactive"
+            
+            if old_status != new_status:
+                self.status_cache[server_id] = new_status
+                self.dirty_servers.add(server_id)
+                self._notify_listeners(server_id, new_status)
+                
             return (server_id, None)
         except Exception as e:
             print(f"[ERROR] Unexpected error checking server {server_id} ({watcher.config.name}): {type(e).__name__}: {e}")

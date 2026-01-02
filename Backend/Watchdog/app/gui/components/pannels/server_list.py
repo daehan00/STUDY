@@ -7,7 +7,7 @@ sys.path.append(str(Path(__file__).parent.parent.parent.parent))
 
 from styles.text import main_pannel_title
 from components.server_list import ServerListItem
-from services import ServerService
+from services import ServerService, MonitorService
 from utils.notification_helper import NotificationHelper
 
 
@@ -17,8 +17,13 @@ class ServerListView:
     def __init__(self, page: ft.Page):
         self.page = page
         self.server_service = ServerService()
+        self.monitor_service = MonitorService()
         self.server_list_container: ft.Column
+        self.server_items = {}  # server_id -> ServerListItem 매핑
         self._initialize_components()
+        
+        # 모니터링 상태 변경 리스너 등록
+        self.monitor_service.add_listener(self._on_server_status_changed)
     
     def _initialize_components(self):
         """컴포넌트 초기화"""
@@ -75,6 +80,24 @@ class ServerListView:
         
         return handler
     
+    def _on_server_status_changed(self, server_id: str, status: str):
+        """서버 상태 변경 이벤트 핸들러"""
+        if server_id in self.server_items:
+            item = self.server_items[server_id]
+            item.update_status(status)
+            
+            # 알림 표시
+            if self.page:
+                server_name = item.name
+                if status == "active":
+                    NotificationHelper.success(self.page, f"'{server_name}' 서버가 정상 상태로 복구되었습니다.")
+                elif status == "inactive":
+                    NotificationHelper.error(self.page, f"'{server_name}' 서버 연결이 끊어졌습니다.")
+                elif status == "warning":
+                    NotificationHelper.warning(self.page, f"'{server_name}' 서버 응답이 지연되고 있습니다.")
+                else:
+                    NotificationHelper.info(self.page, f"'{server_name}' 서버 상태가 '{status}'(으)로 변경되었습니다.")
+
     def _remove_server(self, server_id: str):
         """서버 제거"""
         success = self.server_service.delete_server(server_id)
@@ -84,6 +107,7 @@ class ServerListView:
     def _update_server_list(self):
         """서버 리스트 UI 업데이트"""
         self.server_list_container.controls.clear()
+        self.server_items.clear()
         
         # ServerService에서 서버 목록 가져오기
         servers = self.server_service.get_all_servers()
@@ -126,6 +150,7 @@ class ServerListView:
                     is_monitoring_enabled=server_data.get("is_monitoring_enabled", True),
                     on_toggle_monitoring=self._handle_toggle_monitoring(server_data),
                 )
+                self.server_items[server_data['id']] = item
                 self.server_list_container.controls.append(item.build())
         
         # 페이지에 추가된 경우에만 update 호출
