@@ -1,15 +1,21 @@
 import flet as ft
+import sys
+from pathlib import Path
+
+# 부모 디렉토리를 sys.path에 추가
+sys.path.append(str(Path(__file__).parent.parent.parent.parent))
 
 from styles.text import main_pannel_title
 from components.server_list import ServerListItem
+from services import ServerService
 
 
 class ServerListView:
     """서버 목록 뷰 클래스"""
     
     def __init__(self):
+        self.server_service = ServerService()
         self.server_list_container: ft.Column
-        self.servers = []
         self._initialize_components()
     
     def _initialize_components(self):
@@ -19,40 +25,8 @@ class ServerListView:
             spacing=10,
         )
     
-    def _load_sample_data(self):
-        """샘플 데이터 로드 (실제로는 DB나 API에서 가져옴)"""
-        self.servers = [
-            {
-                "server_type": "web",
-                "name": "메인 웹서버",
-                "status": "active",
-                "url": "https://example.com",
-                "port": "443",
-            },
-            {
-                "server_type": "web",
-                "name": "API 서버",
-                "status": "warning",
-                "url": "https://api.example.com",
-                "port": "8080",
-            },
-            {
-                "server_type": "db",
-                "name": "메인 데이터베이스",
-                "status": "active",
-                "host": "localhost",
-                "port": "5432",
-                "dbms": "postgresql",
-            },
-            {
-                "server_type": "db",
-                "name": "캐시 데이터베이스",
-                "status": "inactive",
-                "host": "cache.example.com",
-                "port": "3306",
-                "dbms": "mysql",
-            },
-        ]
+    def _load_servers(self):
+        """서버 데이터 로드 (ServerService에서 가져옴)"""
         self._update_server_list()
     
     def _handle_edit(self, server_data):
@@ -67,19 +41,23 @@ class ServerListView:
         def handler(e):
             print(f"Delete server: {server_data['name']}")
             # TODO: 삭제 확인 다이얼로그 표시
-            self._remove_server(server_data)
+            self._remove_server(server_data['id'])
         return handler
     
-    def _remove_server(self, server_data):
+    def _remove_server(self, server_id: str):
         """서버 제거"""
-        self.servers = [s for s in self.servers if s != server_data]
-        self._update_server_list()
+        success = self.server_service.delete_server(server_id)
+        if success:
+            self._update_server_list()
     
     def _update_server_list(self):
         """서버 리스트 UI 업데이트"""
         self.server_list_container.controls.clear()
         
-        if not self.servers:
+        # ServerService에서 서버 목록 가져오기
+        servers = self.server_service.get_all_servers()
+        
+        if not servers:
             self.server_list_container.controls.append(
                 ft.Container(
                     content=ft.Column(
@@ -103,7 +81,7 @@ class ServerListView:
                 )
             )
         else:
-            for server_data in self.servers:
+            for server_data in servers:
                 item = ServerListItem(
                     server_type=server_data["server_type"],
                     name=server_data["name"],
@@ -124,19 +102,32 @@ class ServerListView:
             # 아직 페이지에 추가되지 않은 경우 무시
             pass
     
-    def add_server(self, server_data: dict):
-        """새 서버 추가"""
-        self.servers.append(server_data)
+    def refresh(self):
+        """서버 목록 새로고침"""
         self._update_server_list()
     
     def build(self) -> ft.Column:
         """뷰 빌드"""
-        # 초기 데이터 로드
-        if not self.servers:
-            self._load_sample_data()
+        # 서버 데이터 로드
+        self._load_servers()
+        
+        # 타이틀과 새로고침 버튼을 포함하는 Row
+        title_row = ft.Row(
+            controls=[
+                main_pannel_title("서버 목록보기"),
+                ft.IconButton(
+                    icon=ft.Icons.REFRESH,
+                    icon_size=20,
+                    tooltip="새로고침",
+                    on_click=lambda e: self.refresh(),
+                    icon_color="#4F46E5",
+                ),
+            ],
+            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+        )
         
         return ft.Column([
-            main_pannel_title("서버 목록보기"),
+            title_row,
             ft.Divider(height=15),
             ft.Text("등록된 서버 목록을 확인할 수 있습니다.", size=14, color="#718096"),
             ft.Container(height=10),
@@ -144,6 +135,7 @@ class ServerListView:
         ], expand=True, align=ft.Alignment(0, -1), scroll=ft.ScrollMode.AUTO)
 
 
-# 뷰 인스턴스 생성
+# 뷰 인스턴스 생성 및 export
 _server_list_view_instance = ServerListView()
 server_list_view = _server_list_view_instance.build()
+server_list_view_instance = _server_list_view_instance  # 인스턴스 접근용

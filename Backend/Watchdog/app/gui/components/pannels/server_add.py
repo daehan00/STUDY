@@ -1,20 +1,23 @@
 import flet as ft
 import json
 from typing import Dict, Tuple
+import sys
+from pathlib import Path
+
+# 부모 디렉토리를 sys.path에 추가
+sys.path.append(str(Path(__file__).parent.parent.parent.parent))
 
 from styles.text import hint_style, main_pannel_title
 from styles.colors import error_red
+from services import ServerService
+from config import DBMS_PORTS, SERVER_TYPES
 
 
 class ServerAddView:
     """서버 추가 뷰 클래스"""
     
-    DBMS_PORTS = {
-        "mysql": "3306",
-        "postgresql": "5432",
-    }
-    
     def __init__(self):
+        self.server_service = ServerService()
         self.radio_container: ft.Container
         self.radio_error_text: ft.Text
         self.dbms_container: ft.Container | None = None
@@ -74,6 +77,13 @@ class ServerAddView:
         """웹 서버 입력 필드 생성"""
         return [
             ft.TextField(
+                label="NAME *",
+                hint_text="메인 웹서버",
+                hint_style=hint_style,
+                max_length=100,
+                on_change=self._clear_error
+            ),
+            ft.TextField(
                 label="URL *",
                 hint_text="https://example.com",
                 hint_style=hint_style,
@@ -120,7 +130,7 @@ class ServerAddView:
         self._clear_dbms_error()
         
         dbms = e.control.value
-        port_field.value = self.DBMS_PORTS.get(dbms, "")
+        port_field.value = DBMS_PORTS.get(dbms, "")
         port_field.update()
     
     def _create_db_fields(self) -> list:
@@ -155,6 +165,13 @@ class ServerAddView:
         self.dbms_error_text = ft.Text("", size=12, color=ft.CupertinoColors.DESTRUCTIVE_RED)
         
         return [
+            ft.TextField(
+                label="NAME *",
+                hint_text="메인 데이터베이스",
+                hint_style=hint_style,
+                max_length=100,
+                on_change=self._clear_error
+            ),
             ft.Text("DBMS *", size=14, color="#718096"),
             self.dbms_container,
             self.dbms_error_text,
@@ -226,14 +243,14 @@ class ServerAddView:
             return False
         
         if value:
-            data[clean_label] = value
+            data[clean_label.lower()] = value
         
         return True
     
     def _validate_dbms_radio(self, control: ft.Container, data: Dict[str, str]) -> bool:
         """DBMS 라디오 그룹 검증"""
         if control.content.value: # type: ignore
-            data["DBMS"] = control.content.value # type: ignore
+            data["dbms"] = control.content.value # type: ignore
             return True
         
         control.border = ft.Border.all(1, error_red)
@@ -270,17 +287,44 @@ class ServerAddView:
     def _handle_submit(self, e):
         """제출 버튼 클릭 핸들러"""
         is_valid, data = self._validate_and_collect_data()
-        self.message.value += json.dumps(data, ensure_ascii=False, indent=2)
         
         if is_valid:
-            self.message.value += f"\n선택된 서버 타입: {self.server_type_group.value}\n\n수집된 데이터:\n"
-            self.message.value += "\n".join(f"{key}: {value}" for key, value in data.items())
-            self.message.color = "#000000"
+            try:
+                # 서버 타입 추가
+                server_data = {
+                    "server_type": self.server_type_group.value,
+                    **data
+                }
+                
+                # ServerService를 통해 서버 추가
+                added_server = self.server_service.add_server(server_data)
+                
+                self.message.value = f"✅ 서버가 성공적으로 추가되었습니다!\n"
+                self.message.value += f"서버 ID: {added_server.get('id')}\n"
+                self.message.value += f"서버 타입: {added_server.get('server_type')}\n"
+                self.message.color = "#10B981"  # 녹색
+                
+                # 폼 초기화
+                self._reset_form()
+                
+            except Exception as ex:
+                self.message.value = f"❌ 서버 추가 실패: {str(ex)}"
+                self.message.color = error_red
         else:
             self.message.value = "필수 입력 항목을 모두 입력해주세요."
             self.message.color = error_red
         
         self.message.update()
+    
+    def _reset_form(self):
+        """폼 초기화"""
+        # 서버 타입 라디오 초기화
+        self.server_type_group.value = None
+        self.server_type_group.update()
+        
+        # 입력 필드 초기화
+        self.input_fields.controls.clear()
+        self.input_fields.update()
     
     def build(self) -> ft.Column:
         """뷰 빌드"""

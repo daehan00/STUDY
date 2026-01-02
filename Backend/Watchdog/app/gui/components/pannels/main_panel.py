@@ -1,7 +1,7 @@
 import flet as ft
 
 from components.pannels.server_add import server_add_view
-from components.pannels.server_list import server_list_view
+from components.pannels.server_list import server_list_view, server_list_view_instance
 from components.pannels.notifications import notification_settings_view
 
 class MainPanel:
@@ -47,6 +47,8 @@ class MainPanel:
     
     def _get_server_list_view(self):
         """서버 목록보기 화면"""
+        # 뷰 전환 시 서버 목록 새로고침
+        server_list_view_instance.refresh()
         return server_list_view
     
     def _get_notification_settings_view(self):
