@@ -120,13 +120,13 @@ class ServerListItem:
                         controls=[
                             ft.Row(
                                 controls=[
+                                    self.status_container_control,
                                     ft.Text(
                                         self.name,
                                         size=16,
                                         weight=ft.FontWeight.BOLD,
                                         color="#1F2937"
                                     ),
-                                    self.status_container_control,
                                 ],
                                 spacing=10,
                             ),

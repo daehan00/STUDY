@@ -427,6 +427,16 @@ class MonitorService:
             return (server_id, None)
         except Exception as e:
             print(f"[ERROR] Unexpected error checking server {server_id} ({watcher.config.name}): {type(e).__name__}: {e}")
+            
+            # 예기치 않은 에러도 서버 다운으로 간주
+            old_status = self.status_cache.get(server_id)
+            new_status = "inactive"
+            
+            if old_status != new_status:
+                self.status_cache[server_id] = new_status
+                self.dirty_servers.add(server_id)
+                self._notify_listeners(server_id, new_status)
+                
             return (server_id, None)
     
     async def _conditional_save(self):
