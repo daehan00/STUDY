@@ -1,6 +1,7 @@
 """
 애플리케이션 설정 파일
 """
+import datetime
 from pathlib import Path
 
 # 프로젝트 루트 디렉토리
@@ -12,6 +13,7 @@ APP_ROOT = Path(__file__).parent.parent
 USER_DATA_DIR = Path.home() / ".watchdog"
 DATA_DIR = USER_DATA_DIR / "data"
 SERVERS_DATA_FILE = DATA_DIR / "servers.json"
+LOG_DATA_FILE = DATA_DIR / "log.json"
 DATA_VERSION = "1.0"
 
 # 서버 상태 상수
@@ -40,3 +42,8 @@ GUI_COLORS = {
     "WARNING_ORANGE": "#F59E0B",
     "GRAY": "#6B7280",
 }
+
+# log 저장 최대 갯수
+MAX_LOG = 10
+
+LOCAL_TZ = datetime.datetime.now().astimezone().tzinfo

@@ -58,6 +58,9 @@ class MessageGrade(enum.StrEnum):
     resolved="resolved"
     warning="warning"
     critical="critical"
+    start="start"
+    stop="stop"
+    etc="etc"
 
 
 class Message(BaseModel):
