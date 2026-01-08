@@ -1,13 +1,12 @@
 import json
 import uuid
+import logging
 from datetime import datetime
 from typing import Dict, List, Optional
-from pathlib import Path
 
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
+from app.config import SERVERS_DATA_FILE, DATA_VERSION, SERVER_STATUS
 
-from config import SERVERS_DATA_FILE, DATA_VERSION, SERVER_STATUS
+logger = logging.getLogger("ServerService")
 
 
 class ServerService:
@@ -46,7 +45,7 @@ class ServerService:
             try:
                 listener(event_type, server_data)
             except Exception as e:
-                print(f"[ERROR] Error in server service listener: {e}")
+                logger.error(f"Error in server service listener: {e}")
 
     def _ensure_data_file(self) -> None:
         """데이터 파일이 존재하는지 확인하고 없으면 생성"""
@@ -70,7 +69,7 @@ class ServerService:
                 data = json.load(f)
                 self.servers = data.get("servers", [])
         except (FileNotFoundError, json.JSONDecodeError) as e:
-            print(f"데이터 로드 오류: {e}")
+            logger.error(f"데이터 로드 오류: {e}")
             self.servers = []
     
     def save(self) -> None:
@@ -84,7 +83,7 @@ class ServerService:
             with open(self.data_file, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
         except Exception as e:
-            print(f"데이터 저장 오류: {e}")
+            logger.error(f"데이터 저장 오류: {e}")
             raise
     
     def _generate_id(self) -> str:

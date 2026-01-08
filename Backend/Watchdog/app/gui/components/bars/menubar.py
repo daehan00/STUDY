@@ -1,8 +1,11 @@
 import flet as ft
 import asyncio
+import logging
 
 from app.services import MonitorService
 from app.gui.utils.notification_helper import NotificationHelper
+
+logger = logging.getLogger("MenuBar")
 
 
 class MenuBar:
@@ -50,15 +53,16 @@ class MenuBar:
             self.play_button.update()
             # 성공 알림
             NotificationHelper.success(self.page, "모니터링이 시작되었습니다")
-            print("✅ Monitoring started successfully")
+            logger.info("✅ Monitoring started successfully")
             
         except ValueError as ve:
             # 서버 0개 에러
             NotificationHelper.warning(self.page, str(ve), duration=4000)
-            print(f"⚠️  {ve}")
+            logger.error(f"⚠️  {ve}")
         except Exception as ex:
             # 기타 에러
             NotificationHelper.error(self.page, f"모니터링 시작 실패: {str(ex)}")
+            logger.error(f"모니터링 시작 실패: {str(ex)}")
     
     async def _stop_monitoring(self):
         """모니터링 중지"""
@@ -71,9 +75,10 @@ class MenuBar:
             self.play_button.tooltip = "모니터링 시작"
             self.play_button.update()
             
-            print("✅ Monitoring stopped successfully")
+            logger.info("✅ Monitoring stopped successfully")
         except Exception as ex:
             NotificationHelper.error(self.page, f"모니터링 중지 실패: {str(ex)}")
+            logger.error(f"모니터링 중지 실패: {str(ex)}")
     
     def build(self):
         """메뉴바 빌드"""

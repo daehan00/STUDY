@@ -1,10 +1,13 @@
 import urllib.parse
+import logging
 from sqlalchemy import create_engine, text
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
 from app.core.base import BaseWatcher
 from app.core.models import DBCheckResult, Status, DBConfig, BaseCheckResult
+
+logger = logging.getLogger("DBWatcher")
 
 
 class DBWatcher(BaseWatcher):
@@ -44,17 +47,17 @@ class DBWatcher(BaseWatcher):
                 conn.execute(text("SELECT 1"))
 
         except OperationalError as e:
-            print(f"운영 에러 발생! 원인:\n{e.orig}") # DB 드라이버의 실제 메시지
-            print(f"에러 코드: {e.code}")           # SQLAlchemy 고유 에러 코드
+            logger.error(f"운영 에러 발생! 원인:\n{e.orig}") # DB 드라이버의 실제 메시지
+            logger.error(f"에러 코드: {e.code}")           # SQLAlchemy 고유 에러 코드
             check_result.error_code = str(e.orig)
             check_result.error_message = str(e.orig)
             check_result.status = Status.down
         except SQLAlchemyError as e:
             check_result.error_message = e.args[0].split('"')[1]
             check_result.status = Status.down
-            print(f"기타 DB 에러: {check_result.error_message}")
+            logger.error(f"기타 DB 에러: {check_result.error_message}")
         
-        print(f"{self.config.name} check")
+        logger.debug(f"{self.config.name} check")
         return check_result
 
     async def acheck_server(self) -> DBCheckResult:
@@ -64,17 +67,17 @@ class DBWatcher(BaseWatcher):
                 await conn.execute(text("SELECT 1"))
 
         except OperationalError as e:
-            print(f"운영 에러 발생! 원인:\n{e.orig}") # DB 드라이버의 실제 메시지
-            print(f"에러 코드: {e.code}")           # SQLAlchemy 고유 에러 코드
+            logger.error(f"운영 에러 발생! 원인:\n{e.orig}") # DB 드라이버의 실제 메시지
+            logger.error(f"에러 코드: {e.code}")           # SQLAlchemy 고유 에러 코드
             check_result.error_code = str(e.orig)
             check_result.error_message = str(e.orig)
             check_result.status = Status.down
         except SQLAlchemyError as e:
             check_result.error_message = e.args[0].split('"')[1]
             check_result.status = Status.down
-            print(f"기타 DB 에러: {check_result.error_message}")
+            logger.error(f"기타 DB 에러: {check_result.error_message}")
         
-        print(f"{self.config.name} check")
+        logger.debug(f"{self.config.name} check")
         return check_result
 
     async def cleanup(self) -> None:

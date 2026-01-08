@@ -1,9 +1,12 @@
 import httpx
 import time
+import logging
 from typing import cast
 
 from app.core.base import BaseWatcher
 from app.core.models import WebCheckResult, Status, WebConfig, BaseCheckResult
+
+logger = logging.getLogger("WebWatcher")
 
 
 class WebWatcher(BaseWatcher):
@@ -34,10 +37,11 @@ class WebWatcher(BaseWatcher):
                 body=response.json(),
                 latency=process_time
             )
-            print(f"{self.config.name} server check")
+            logger.debug(f"{self.config.name} server check. status: {status} result: {result.body}")
 
             return result
         except httpx.ReadTimeout as e:
+            logger.error(f"{self.config.name} server check. Timeout error for 30 sec.")
             return WebCheckResult(
                 status=Status.latency,
                 endpoint=self.config.endpoint,
@@ -67,10 +71,11 @@ class WebWatcher(BaseWatcher):
                 body=response.json(),
                 latency=process_time
             )
-            print(f"{self.config.name} server check")
+            logger.debug(f"{self.config.name} server check. status: {status} result: {result.body}")
 
             return result
         except httpx.ReadTimeout as e:
+            logger.error(f"{self.config.name} server check. Timeout error for 30 sec.")
             return WebCheckResult(
                 status=Status.latency,
                 endpoint=self.config.endpoint,

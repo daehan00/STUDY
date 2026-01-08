@@ -1,10 +1,13 @@
 import flet as ft
+import logging
 
 from app.gui.styles.text import main_pannel_title
 from app.gui.components.server_list import ServerListItem
 from app.gui.components.popup import create_edit_popup
 from app.gui.utils.notification_helper import NotificationHelper
 from app.services import ServerService, MonitorService
+
+logger = logging.getLogger("ServerListView")
 
 
 class ServerListView:
@@ -35,10 +38,10 @@ class ServerListView:
     def _handle_edit(self, server_data):
         """서버 수정 핸들러"""
         def handler(e):
-            print(f"Edit handler called for {server_data.get('name')}")
+            logger.debug(f"Edit handler called for {server_data.get('name')}")
             
             def on_save(updated_data):
-                print(f"Saving data: {updated_data}")
+                logger.info(f"Saving data: {updated_data}")
                 # 서버 정보 업데이트
                 self.server_service.update_server(server_data['id'], updated_data)
                 
@@ -53,11 +56,11 @@ class ServerListView:
                 NotificationHelper.success(self.page, f"'{updated_data['name']}' 서버 정보가 수정되었습니다.")
 
             def on_cancel(e):
-                print("Cancel clicked")
+                logger.debug("Cancel clicked")
                 self.page.pop_dialog()
 
             # 팝업 생성 및 표시
-            print("Creating popup")
+            logger.debug("Creating popup")
             popup = create_edit_popup(
                 server_data=server_data,
                 on_save=on_save,
@@ -73,7 +76,7 @@ class ServerListView:
     def _handle_delete(self, server_data):
         """서버 삭제 핸들러"""
         def handler(e):
-            print(f"Delete server: {server_data['name']}")
+            logger.info(f"Delete server: {server_data['name']}")
             # TODO: 삭제 확인 다이얼로그 표시
             success = self._remove_server(server_data['id'])
             
@@ -103,7 +106,7 @@ class ServerListView:
             })
             
             status_text = "활성화" if new_state else "비활성화"
-            print(f"Server {server_data['name']} monitoring {status_text}")
+            logger.info(f"Server {server_data['name']} monitoring {status_text}")
         
         return handler
     
