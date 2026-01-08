@@ -1,13 +1,17 @@
 import asyncio
 import time
+import logging
 from typing import Any, Dict, Set, Optional, Tuple
 
 from app.services.server_service import ServerService
 from app.core.base import BaseWatcher
 from app.core.web_watcher import WebWatcher
 from app.core.db_watcher import DBWatcher
-from app.core.models import WebConfig, DBConfig, Status
+from app.core.models import WebConfig, DBConfig, Status, MessageGrade, BaseCheckResult
+from app.core.logger import Logger, LogManager
 
+logger = logging.getLogger("MonitorService")
+log_manager = LogManager()
 
 class MonitorService:
     """서버 모니터링 서비스 (Singleton)"""
@@ -26,6 +30,8 @@ class MonitorService:
         
         self.is_running = False
         self.watchers: Dict[str, BaseWatcher] = {}
+        self.logger = Logger("MonitorService")
+        self.logger.info(MessageGrade.start, "Initialized!")
         self.server_service = ServerService()
         self.check_interval = 30  # 30초마다 체크
         self.main_task: Optional[asyncio.Task] = None
@@ -49,6 +55,8 @@ class MonitorService:
         self.server_service.add_listener(self._on_server_data_changed)
         
         self._initialized = True
+
+        logger.debug("initialized!!")
     
     def _on_server_data_changed(self, event_type: str, server_data: Dict):
         """서버 데이터 변경 시 호출되는 콜백"""
@@ -59,14 +67,23 @@ class MonitorService:
         server_name = server_data.get('name', 'Unknown')
         is_enabled = server_data.get('is_monitoring_enabled', True)
 
-        print(f"[INFO] Server data changed: {event_type} - {server_name} (Enabled: {is_enabled})")
+        self.logger.info(
+            MessageGrade.etc,
+            f"Server data changed: {event_type} - {server_name} (Enabled: {is_enabled})"
+        )
+        logger.info(f"Server data changed: {event_type} - {server_name} (Enabled: {is_enabled})")
 
         if event_type == "delete":
             if server_id in self.watchers:
+                self.watchers[server_id].logger.info(
+                    MessageGrade.etc,
+                    f"Removed watcher for deleted server: {server_name}"
+                )
+                
                 del self.watchers[server_id]
                 if server_id in self.status_cache:
                     del self.status_cache[server_id]
-                print(f"[INFO] Removed watcher for deleted server: {server_name}")
+                logger.info(f"Removed watcher for deleted server: {server_name}")
 
         elif event_type == "add":
             if is_enabled and server_id not in self.watchers:
@@ -74,14 +91,22 @@ class MonitorService:
                 if watcher:
                     self.watchers[server_id] = watcher
                     self.status_cache[server_id] = server_data.get('status', 'active')
-                    print(f"[INFO] Added watcher for new server: {server_name}")
+                    watcher.logger.info(
+                        MessageGrade.etc,
+                        f"Added watcher for new server: {server_name}"
+                    )
+                    logger.info(f"Added watcher for new server: {server_name}")
 
         elif event_type == "update":
             # 모니터링 비활성화된 경우 제거
             if not is_enabled:
                 if server_id in self.watchers:
+                    self.watchers[server_id].logger.info(
+                        MessageGrade.etc,
+                        f"Removed watcher (disabled): {server_name}"
+                    )
                     del self.watchers[server_id]
-                    print(f"[INFO] Removed watcher (disabled): {server_name}")
+                    logger.info(f"Removed watcher (disabled): {server_name}")
             else:
                 # 활성화 상태인 경우 Watcher 재생성 및 교체
                 # (설정이 변경되었을 수 있으므로 무조건 재생성)
@@ -89,7 +114,11 @@ class MonitorService:
                 if watcher:
                     self.watchers[server_id] = watcher
                     # 상태 캐시는 유지하거나 초기화 (여기서는 유지)
-                    print(f"[INFO] Updated watcher for server: {server_name}")
+                    watcher.logger.info(
+                        MessageGrade.etc,
+                        f"Updated watcher for server: {server_name}"
+                    )
+                    logger.info(f"Updated watcher for server: {server_name}")
 
     def add_listener(self, callback):
         """상태 변경 리스너 추가"""
@@ -107,24 +136,30 @@ class MonitorService:
             try:
                 listener(server_id, status)
             except Exception as e:
-                print(f"[ERROR] Error in listener: {e}")
+                logger.error(f"Error in listener: {e}")
 
     async def start(self):
         """모니터링 시작"""
         if self.is_running:
-            print("[INFO] Monitoring is already running")
+            logger.info("Monitoring is already running")
             return
         
         try:
+            await log_manager.start()
             self.is_running = True
             self._load_servers()
             
             # 서버가 0개인 경우 예외 발생
             if len(self.watchers) == 0:
                 self.is_running = False
+                await log_manager.stop()
                 raise ValueError("모니터링할 서버가 없습니다. 먼저 서버를 추가해주세요.")
             
-            print(f"[INFO] Monitoring started with {len(self.watchers)} servers")
+            self.logger.info(
+                MessageGrade.start,
+                f"Monitoring started with {len(self.watchers)} servers"
+            )
+            logger.info(f"Monitoring started with {len(self.watchers)} servers")
             
             # 메인 모니터링 루프 시작
             self.main_task = asyncio.create_task(self._monitor_loop())
@@ -133,7 +168,7 @@ class MonitorService:
             # ValueError는 그대로 전달 (UI에서 처리)
             raise
         except Exception as e:
-            print(f"[ERROR] Failed to start monitoring: {e}")
+            logger.error(f"Failed to start monitoring: {e}")
             self.is_running = False
             raise
     
@@ -144,12 +179,6 @@ class MonitorService:
         
         self.is_running = False
         
-        try:
-            # 중지 전 모든 변경사항 저장
-            await self._save_states()
-        except Exception as e:
-            print(f"[ERROR] Failed to save states during shutdown: {e}")
-        
         if self.main_task:
             self.main_task.cancel()
             try:
@@ -157,7 +186,7 @@ class MonitorService:
             except asyncio.CancelledError:
                 pass
             except Exception as e:
-                print(f"[ERROR] Error while cancelling monitor task: {e}")
+                logger.error(f"Error while cancelling monitor task: {e}")
         
         # Watcher 리소스 정리 (DB 연결 종료 등)
         for watcher in self.watchers.values():
@@ -165,13 +194,18 @@ class MonitorService:
                 try:
                     await watcher.cleanup()
                 except Exception as e:
-                    print(f"[ERROR] Failed to cleanup watcher: {e}")
+                    logger.error(f"Failed to cleanup watcher: {e}")
 
         self.watchers.clear()
         self.status_cache.clear()
         self.dirty_servers.clear()
         
-        print("[INFO] Monitoring stopped")
+        self.logger.info(
+            MessageGrade.stop,
+            "Monitoring stopped"
+        )
+        await log_manager.stop()
+        logger.info("Monitoring stopped")
     
     def _load_servers(self):
         """서버 목록 로드 및 Watcher 생성"""
@@ -199,22 +233,26 @@ class MonitorService:
                             # 초기 상태 캐시
                             self.status_cache[server_id] = server.get('status', 'active')
                             success_count += 1
+                            watcher.logger.info(
+                                MessageGrade.etc,
+                                f"Added watcher for server: {server_name}"
+                            )
                         else:
-                            print(f"[WARNING] Failed to create watcher for server '{server_name}' (ID: {server_id})")
+                            logger.warning(f"Failed to create watcher for server '{server_name}' (ID: {server_id})")
                             fail_count += 1
                     except Exception as e:
-                        print(f"[ERROR] Exception while creating watcher for '{server_name}': {e}")
+                        logger.error(f"Exception while creating watcher for '{server_name}': {e}")
                         fail_count += 1
             
             self._last_server_ids = set(s['id'] for s in enabled_servers)
             
             if success_count > 0:
-                print(f"[INFO] Loaded {success_count} watchers successfully")
+                logger.info(f"Loaded {success_count} watchers successfully")
             if fail_count > 0:
-                print(f"[WARNING] Failed to load {fail_count} watchers")
+                logger.warning(f"Failed to load {fail_count} watchers")
                 
         except Exception as e:
-            print(f"[ERROR] Failed to load servers: {e}")
+            logger.error(f"Failed to load servers: {e}")
             raise
     
     def _create_watcher(self, server_data: Dict) -> Optional[BaseWatcher]:
@@ -245,17 +283,17 @@ class MonitorService:
                 return DBWatcher(config)
             
             else:
-                print(f"[WARNING] Unknown server type '{server_type}' for server '{server_name}'")
+                logger.warning(f"Unknown server type '{server_type}' for server '{server_name}'")
                 return None
             
         except KeyError as e:
-            print(f"[ERROR] Missing required field {e} for server '{server_name}'")
+            logger.error(f"Missing required field {e} for server '{server_name}'")
             return None
         except ValueError as e:
-            print(f"[ERROR] Invalid value for server '{server_name}': {e}")
+            logger.error(f"Invalid value for server '{server_name}': {e}")
             return None
         except Exception as e:
-            print(f"[ERROR] Failed to create watcher for '{server_name}': {type(e).__name__}: {e}")
+            logger.error(f"Failed to create watcher for '{server_name}': {type(e).__name__}: {e}")
             return None
     
     async def _monitor_loop(self):
@@ -292,7 +330,7 @@ class MonitorService:
                     # 실패한 체크 확인
                     failed_checks = sum(1 for r in results if isinstance(r, Exception))
                     if failed_checks > 0:
-                        print(f"[WARNING] {failed_checks}/{len(tasks)} server checks failed")
+                        logger.warning(f"{failed_checks}/{len(tasks)} server checks failed")
                     
                     # 조건부 저장
                     await self._conditional_save()
@@ -304,15 +342,15 @@ class MonitorService:
                     await asyncio.sleep(self.check_interval)
                     
                 except asyncio.CancelledError:
-                    print("[INFO] Monitor loop cancelled")
+                    logger.info("Monitor loop cancelled")
                     break
                 except Exception as e:
                     consecutive_errors += 1
-                    print(f"[ERROR] Monitor loop error ({consecutive_errors}/{max_consecutive_errors}): {type(e).__name__}: {e}")
+                    logger.error(f"Monitor loop error ({consecutive_errors}/{max_consecutive_errors}): {type(e).__name__}: {e}")
                     
                     # 연속 에러가 너무 많으면 모니터링 중지
                     if consecutive_errors >= max_consecutive_errors:
-                        print(f"[CRITICAL] Too many consecutive errors. Stopping monitoring.")
+                        logger.error(f"Too many consecutive errors. Stopping monitoring.")
                         self.is_running = False
                         break
                     
@@ -321,11 +359,11 @@ class MonitorService:
                     await asyncio.sleep(backoff_time)
         finally:
             # 루프 종료 시 (에러, 취소 등) 상태 저장
-            print("[INFO] Monitor loop finished. Saving final states...")
+            logger.info("Monitor loop finished. Saving final states...")
             try:
                 await self._save_states()
             except Exception as e:
-                print(f"[ERROR] Failed to save states on loop exit: {e}")
+                logger.error(f"Failed to save states on loop exit: {e}")
     
     async def _sync_servers(self):
         """서버 목록 동기화 (안전하게)"""
@@ -351,7 +389,7 @@ class MonitorService:
                     # 캐시에서도 제거
                     self.status_cache.pop(server_id, None)
                     self.dirty_servers.discard(server_id)
-                    print(f"[INFO] Server {server_id} removed from monitoring")
+                    logger.info(f"Server {server_id} removed from monitoring")
                 
                 # 새로 추가된 서버 또는 활성화된 서버 등록
                 for server in enabled_servers:
@@ -364,18 +402,22 @@ class MonitorService:
                             if watcher:
                                 new_watchers[server_id] = watcher
                                 self.status_cache[server_id] = server.get('status', 'active')
-                                print(f"[INFO] Server '{server_name}' (ID: {server_id}) added to monitoring")
+                                watcher.logger.info(
+                                    MessageGrade.etc,
+                                    f"Added watcher for server: {server_name}"
+                                )
+                                logger.warning(f"Server '{server_name}' (ID: {server_id}) added to monitoring")
                             else:
-                                print(f"[WARNING] Failed to add server '{server_name}' to monitoring")
+                                logger.warning(f"Failed to add server '{server_name}' to monitoring")
                         except Exception as e:
-                            print(f"[ERROR] Failed to add server '{server_name}': {e}")
+                            logger.error(f"Failed to add server '{server_name}': {e}")
                 
                 # 원자적으로 교체
                 self.watchers = new_watchers
                 self._last_server_ids = current_ids
                 
         except Exception as e:
-            print(f"[ERROR] Failed to sync servers: {e}")
+            logger.error(f"Failed to sync servers: {e}")
             # 동기화 실패해도 기존 watchers는 유지
     
     async def _check_server(self, server_id: str, watcher: BaseWatcher) -> Tuple[str, Optional[Any]]:
@@ -395,50 +437,68 @@ class MonitorService:
             
             # 상태가 변경된 경우만 처리
             if old_status != new_status:
-                self.status_cache[server_id] = new_status
-                self.dirty_servers.add(server_id)
-                print(f"[INFO] Server {server_id} ({watcher.config.name}) status changed: {old_status} -> {new_status}")
-                self._notify_listeners(server_id, new_status)
+                self._update_change(server_id, old_status, new_status, watcher, result)
             
             return (server_id, result)
             
         except asyncio.TimeoutError:
-            print(f"[ERROR] Timeout checking server {server_id} ({watcher.config.name})")
+            msg = f"Timeout checking server {server_id} ({watcher.config.name})"
+            logger.error(msg)
             # 타임아웃 시 inactive로 처리
             old_status = self.status_cache.get(server_id)
             new_status = "inactive"
             
             if old_status != new_status:
-                self.status_cache[server_id] = new_status
-                self.dirty_servers.add(server_id)
-                self._notify_listeners(server_id, new_status)
+                self._update_change(server_id, old_status, new_status, watcher, error_message=msg)
                 
             return (server_id, None)
         except ConnectionError as e:
-            print(f"[ERROR] Connection error for server {server_id} ({watcher.config.name}): {e}")
+            msg = f"Connection error for server {server_id} ({watcher.config.name}): {e}"
+            logger.error(msg)
             old_status = self.status_cache.get(server_id)
             new_status = "inactive"
             
             if old_status != new_status:
-                self.status_cache[server_id] = new_status
-                self.dirty_servers.add(server_id)
-                self._notify_listeners(server_id, new_status)
+                self._update_change(server_id, old_status, new_status, watcher, error_message=msg)
                 
             return (server_id, None)
         except Exception as e:
-            print(f"[ERROR] Unexpected error checking server {server_id} ({watcher.config.name}): {type(e).__name__}: {e}")
+            msg = f"Unexpected error checking server {server_id} ({watcher.config.name}): {type(e).__name__}: {e}"
+            logger.error(msg)
             
             # 예기치 않은 에러도 서버 다운으로 간주
             old_status = self.status_cache.get(server_id)
             new_status = "inactive"
             
             if old_status != new_status:
-                self.status_cache[server_id] = new_status
-                self.dirty_servers.add(server_id)
-                self._notify_listeners(server_id, new_status)
+                self._update_change(server_id, old_status, new_status, watcher, error_message=msg)
                 
             return (server_id, None)
     
+    def _update_change(
+        self, server_id: str, old_status: str | None,
+        new_status: str, watcher: BaseWatcher,
+        result: BaseCheckResult | None = None,
+        error_message: str | None = None
+    ) -> None:
+        self.status_cache[server_id] = new_status
+        self.dirty_servers.add(server_id)
+        detail = result.model_dump() if result else error_message
+        if isinstance(detail, dict):
+            detail["status"] = detail["status"].name
+
+        event = MessageGrade.resolved
+
+        if new_status == "inactive":
+            event = MessageGrade.critical
+        
+        if new_status == "warning":
+            event = MessageGrade.warning
+
+        watcher.logger.info(event, detail)
+        logger.info(f"Server {server_id} ({watcher.config.name}) status changed: {old_status} -> {new_status}")
+        self._notify_listeners(server_id, new_status)
+
     async def _conditional_save(self):
         """조건부 파일 저장"""
         current_time = time.time()
@@ -466,22 +526,22 @@ class MonitorService:
                     self.server_service.update_server(server_id, {"status": status})
                     success_count += 1
                 except FileNotFoundError as e:
-                    print(f"[ERROR] Server data file not found while saving {server_id}: {e}")
+                    logger.error(f"Server data file not found while saving {server_id}: {e}")
                     fail_count += 1
                 except PermissionError as e:
-                    print(f"[ERROR] Permission denied while saving {server_id}: {e}")
+                    logger.error(f"Permission denied while saving {server_id}: {e}")
                     fail_count += 1
                 except Exception as e:
-                    print(f"[ERROR] Failed to save status for {server_id}: {type(e).__name__}: {e}")
+                    logger.error(f"Failed to save status for {server_id}: {type(e).__name__}: {e}")
                     fail_count += 1
         
         self.dirty_servers.clear()
         self.last_save_time = time.time()
         
         if success_count > 0:
-            print(f"[INFO] States saved to file ({success_count} servers)")
+            logger.info(f"States saved to file ({success_count} servers)")
         if fail_count > 0:
-            print(f"[WARNING] Failed to save {fail_count} server states")
+            logger.warning(f"Failed to save {fail_count} server states")
     
     def get_status(self) -> Dict:
         """현재 모니터링 상태 반환"""

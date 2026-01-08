@@ -15,6 +15,7 @@ DATA_DIR = USER_DATA_DIR / "data"
 SERVERS_DATA_FILE = DATA_DIR / "servers.json"
 LOG_DATA_FILE = DATA_DIR / "log.json"
 DATA_VERSION = "1.0"
+LOG_LEVEL = "INFO"
 
 # 서버 상태 상수
 SERVER_STATUS = {

@@ -6,6 +6,7 @@ from .settings import (
     SERVER_TYPES,
     DBMS_PORTS,
     GUI_COLORS,
+    LOG_LEVEL,
 )
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "SERVER_TYPES",
     "DBMS_PORTS",
     "GUI_COLORS",
+    "LOG_LEVEL",
 ]
