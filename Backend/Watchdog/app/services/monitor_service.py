@@ -8,7 +8,7 @@ from app.core.base import BaseWatcher
 from app.core.web_watcher import WebWatcher
 from app.core.db_watcher import DBWatcher
 from app.core.models import WebConfig, DBConfig, Status, MessageGrade, BaseCheckResult
-from app.core.logger import Logger, LogManager
+from app.utils.server_logger import CustomLogger, LogManager
 
 logger = logging.getLogger("MonitorService")
 log_manager = LogManager()
@@ -30,7 +30,7 @@ class MonitorService:
         
         self.is_running = False
         self.watchers: Dict[str, BaseWatcher] = {}
-        self.logger = Logger("MonitorService")
+        self.logger = CustomLogger("MonitorService")
         self.logger.info(MessageGrade.start, "Initialized!")
         self.server_service = ServerService()
         self.check_interval = 30  # 30초마다 체크
@@ -67,10 +67,6 @@ class MonitorService:
         server_name = server_data.get('name', 'Unknown')
         is_enabled = server_data.get('is_monitoring_enabled', True)
 
-        self.logger.info(
-            MessageGrade.etc,
-            f"Server data changed: {event_type} - {server_name} (Enabled: {is_enabled})"
-        )
         logger.info(f"Server data changed: {event_type} - {server_name} (Enabled: {is_enabled})")
 
         if event_type == "delete":
@@ -114,11 +110,11 @@ class MonitorService:
                 if watcher:
                     self.watchers[server_id] = watcher
                     # 상태 캐시는 유지하거나 초기화 (여기서는 유지)
-                    watcher.logger.info(
-                        MessageGrade.etc,
-                        f"Updated watcher for server: {server_name}"
-                    )
-                    logger.info(f"Updated watcher for server: {server_name}")
+                    # watcher.logger.info(
+                    #     MessageGrade.etc,
+                    #     f"Updated watcher for server: {server_name}"
+                    # )
+                    # logger.info(f"Updated watcher for server: {server_name}")
 
     def add_listener(self, callback):
         """상태 변경 리스너 추가"""
@@ -362,6 +358,7 @@ class MonitorService:
             logger.info("Monitor loop finished. Saving final states...")
             try:
                 await self._save_states()
+                await self.logger.log_manager._save_to_json()
             except Exception as e:
                 logger.error(f"Failed to save states on loop exit: {e}")
     

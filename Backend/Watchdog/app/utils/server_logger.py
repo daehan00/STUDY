@@ -6,15 +6,8 @@ from collections import deque
 from typing import Deque
 from pydantic import BaseModel, Field
 
-try:
-    from app.core.models import MessageGrade, Status
-    from app.config.settings import MAX_LOG, LOCAL_TZ, DATA_VERSION, LOG_DATA_FILE
-except ImportError:
-    from models import MessageGrade, Status
-    DATA_VERSION = "1.0"
-    LOG_DATA_FILE = Path(__file__).parent / "log.json"
-    MAX_LOG = 100
-    LOCAL_TZ = datetime.datetime.now().astimezone().tzinfo
+from app.core.models import MessageGrade, Status
+from app.config.settings import MAX_LOG, LOCAL_TZ, DATA_VERSION, LOG_DATA_FILE
 
 
 class LogEntry(BaseModel):
@@ -50,7 +43,7 @@ class LogManager:
         self._semaphore = asyncio.Semaphore(5)
         self._initialized = True
         self._running = False
-        self.save_interval = 10
+        self.save_interval = 60
         self._file_manager = FileManager(LOG_DATA_FILE)
         self._load_saved_logs()
     
@@ -60,6 +53,7 @@ class LogManager:
     
     async def stop(self) -> None:
         self._running = False
+        await self._save_to_json()  # 종료 시 남아있는 로그 저장
         
     async def aadd_log(self, **kwargs) -> str:
         data = LogEntry(**kwargs)
@@ -106,11 +100,14 @@ class LogManager:
         
         return result
 
+    def clear_all_logs(self) -> None:
+        self._file_manager.save([])
 
-class Logger:
+
+class CustomLogger:
     def __init__(self, signature: str) -> None:
         self.sign = signature
-        self.log_manager = log_manager
+        self.log_manager = LogManager()
     
     def info(self, event, details):
         self.log_manager.add_log(
@@ -220,34 +217,6 @@ class FileManager:
         except Exception as e:
             print(f"데이터 저장 오류: {e}")
             raise
+    
 
 log_manager = LogManager()
-
-if __name__ == "__main__":
-    logger = LogManager()
-
-    async def main():
-        logs = [LogEntry(
-            source=f"testinstance({i})",
-            event=MessageGrade.critical,
-            details={"status": Status.down.name},
-            level="INFO"
-        ) for i in range(10000)]
-
-        tasks = [logger.aadd_log(*log) for log in logs]
-
-        await asyncio.gather(*tasks)
-
-        await logger._save_to_json()
-    
-    import time
-    s = time.perf_counter_ns()
-    # asyncio.run(main())
-    logs = logger.get_logs("testinstance(9999)")
-    print(logs)
-    e = time.perf_counter_ns()
-    print(e-s)
-
-# 59886416
-# 59751250
-# 58695083

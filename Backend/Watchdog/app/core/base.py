@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Protocol
 
 from app.core.models import Status, BaseCheckResult, BaseConfig, Message
-from app.core.logger import Logger
+from app.utils.server_logger import CustomLogger
 
 
 class BaseWatcher(ABC):
@@ -15,7 +15,7 @@ class BaseWatcher(ABC):
         self.backoff = backoff
         self.template = self.make_template()
         self.sign = self._signature()
-        self.logger = Logger(self.config.name+"_Watcher") if self.config.name else Logger("Unknown_Watcher")
+        self.logger = CustomLogger(self.config.name+"_watcher") if self.config.name else CustomLogger("unknown_watcher")
     
     def _signature(self) -> tuple[Any]:
         return tuple(sorted(self.config.model_dump().items()))
