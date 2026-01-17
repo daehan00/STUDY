@@ -60,6 +60,22 @@ class Sidebar:
                             ),
                         ],
                     ),
+                    ft.Divider(height=1),
+                    ft.PopupMenuButton(
+                        icon=ft.Icons.CHECKROOM,
+                        icon_size=24,
+                        icon_color="#4a5568",
+                        tooltip="실행 기록 확인",
+                        items=[
+                            ft.PopupMenuItem(
+                                content=ft.Row([
+                                    ft.Icon(ft.Icons.TERMINAL, size=16),
+                                    ft.Text("서버 로그 확인", size=13),
+                                ], spacing=10),
+                                on_click=lambda _: self.on_menu_click("log_view") if self.on_menu_click else None
+                            ),
+                        ],
+                    ),
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=10),
                 expand=True,
                 padding=ft.Padding.only(top=10)
@@ -117,6 +133,22 @@ class Sidebar:
                                 dense=True,
                                 content_padding=ft.Padding.only(left=30, right=10),
                                 on_click=lambda _: self.on_menu_click("notification_settings") if self.on_menu_click else None
+                            ),
+                        ],
+                        expand=True,
+                        expanded=True
+                    ),
+                    ft.Divider(height=1),
+                    ft.ExpansionTile(
+                        title=ft.Text("실행 기록 확인", size=15, weight=ft.FontWeight.W_500),
+                        leading=ft.Icon(ft.Icons.CHECKROOM, size=20, color="#4a5568"),
+                        controls=[
+                            ft.ListTile(
+                                title=ft.Text("서버 로그 확인", size=13),
+                                leading=ft.Icon(ft.Icons.TERMINAL, size=18),
+                                dense=True,
+                                content_padding=ft.Padding.only(left=30, right=10),
+                                on_click=lambda _: self.on_menu_click("log_view") if self.on_menu_click else None
                             ),
                         ],
                         expand=True,

@@ -18,7 +18,7 @@ class MonitorService:
     
     _instance = None
     
-    def __new__(cls):
+    def __new__(cls, *args, **kwargs):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
@@ -32,6 +32,7 @@ class MonitorService:
         self.watchers: Dict[str, BaseWatcher] = {}
         self.logger = CustomLogger("MonitorService")
         self.logger.info(MessageGrade.start, "Initialized!")
+            
         self.server_service = ServerService()
         self.check_interval = 30  # 30초마다 체크
         self.main_task: Optional[asyncio.Task] = None
@@ -480,6 +481,7 @@ class MonitorService:
     ) -> None:
         self.status_cache[server_id] = new_status
         self.dirty_servers.add(server_id)
+
         detail = result.model_dump() if result else error_message
         if isinstance(detail, dict):
             detail["status"] = detail["status"].name

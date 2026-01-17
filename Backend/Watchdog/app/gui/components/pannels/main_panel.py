@@ -2,18 +2,22 @@ import flet as ft
 
 from app.gui.components.pannels.server_add import ServerAddView
 from app.gui.components.pannels.server_list import ServerListView
+from app.gui.components.pannels.log_view import LogView
 from app.gui.components.pannels.notifications import notification_settings_view
+from app.state.app_state import AppState
 
 class MainPanel:
-    def __init__(self, page: ft.Page):
+    def __init__(self, page: ft.Page, app_state: AppState):
         self.page = page
+        self.app_state = app_state
         self.container = None
         # ServerAddView에 page 전달
         self.server_add_view_instance = ServerAddView(page)
         self.server_add_view = self.server_add_view_instance.build()
-        # ServerListView에 page 전달
-        self.server_list_view_instance = ServerListView(page)
+        # ServerListView에 page와 app_state 전달
+        self.server_list_view_instance = ServerListView(page, app_state)
         self.server_list_view = self.server_list_view_instance.build()
+        self.log_view = LogView(app_state)
         
     def build(self):
         self.container = ft.Container(
@@ -61,6 +65,9 @@ class MainPanel:
         """알림 채널 설정 화면"""
         return notification_settings_view
     
+    def _get_log_view(self):
+        return self.log_view
+    
     def update_content(self, view_name: str):
         """메뉴 선택에 따라 콘텐츠 업데이트"""
         view_map = {
@@ -68,6 +75,7 @@ class MainPanel:
             "add_server": self._get_add_server_view,
             "server_list": self._get_server_list_view,
             "notification_settings": self._get_notification_settings_view,
+            "log_view": self._get_log_view,
         }
         
         if view_name in view_map and self.container:

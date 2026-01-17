@@ -46,6 +46,18 @@ class LogManager:
         self.save_interval = 60
         self._file_manager = FileManager(LOG_DATA_FILE)
         self._load_saved_logs()
+
+        self.listeners = []
+    
+    def add_listener(self, callback):
+        self.listeners.append(callback)
+    
+    def _notify_listeners(self, log_entry: LogEntry):
+        for listener in self.listeners:
+            try:
+                listener(log_entry)
+            except Exception as e:
+                print(f"Log listener error: {e}")
     
     async def start(self) -> None:
         self._running = True
@@ -59,11 +71,17 @@ class LogManager:
         data = LogEntry(**kwargs)
         async with self._lock:
             self.log.append(data)
+        
+        self._notify_listeners(data)
+
         return data.to_string()
     
     def add_log(self, **kwargs) -> str:
         data = LogEntry(**kwargs)
         self.log.append(data)
+
+        self._notify_listeners(data)
+        
         return data.to_string()
     
     def get_logs(self, source: str, max_count: int = 10) -> list[str]:
