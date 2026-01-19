@@ -5,28 +5,31 @@ from datetime import datetime
 from app.utils.server_logger import LogEntry
 from app.core.models import MessageGrade
 from app.state.app_state import AppState
+from app.config import GUI_COLORS
 
 class LogView(ft.Container):
     def __init__(self, app_state: AppState):
         super().__init__()
         self.app_state = app_state
-        self.log_list = ft.ListView(
+        
+        # 로그 리스트 (가로/세로 스크롤 지원)
+        self.log_list = ft.Column(
             expand=True,
             spacing=2,
             auto_scroll=True,  # 새 로그가 오면 자동으로 맨 아래로 스크롤
-            padding=10,
+            scroll=ft.ScrollMode.AUTO,
         )
         
-        # 스타일링: 터미널 느낌 (검은 배경, 모노스페이스 폰트)
-        self.content = ft.Container(
-            content=self.log_list,
-            bgcolor="#1e1e1e",  # VS Code 터미널 색상
-            border_radius=5,
-            border=ft.Border.all(1, "#333333"),
-        )
+        # LogView(Container) 스타일링 및 설정
         self.expand = True
-        self.align=ft.Alignment(0,-1)
-        self.scroll=ft.ScrollMode.AUTO
+        self.bgcolor = "#1e1e1e"  # VS Code 터미널 색상
+        self.border_radius = 5
+        self.border = ft.Border.all(1, "#333333")
+        self.padding = 10
+        self.alignment = ft.Alignment(-1,-1)
+        
+        # 내부 컨텐츠 설정
+        self.content = self.log_list
         
         # AppState에서 기존 로그 로드
         for log in self.app_state.get_logs():
@@ -42,42 +45,52 @@ class LogView(ft.Container):
     def _get_color_by_grade(self, grade: MessageGrade) -> str:
         """로그 등급별 색상 지정"""
         if grade == MessageGrade.critical:
-            return "#ff5252"  # Red
+            return GUI_COLORS["ERROR_RED"]
         elif grade == MessageGrade.warning:
-            return "#ffab40"  # Orange
+            return GUI_COLORS["WARNING_ORANGE"]
         elif grade == MessageGrade.resolved:
-            return "#69f0ae"  # Green
+            return GUI_COLORS["SUCCESS_GREEN"]
         elif grade == MessageGrade.start:
-            return "#448aff"  # Blue
+            return GUI_COLORS["START"]
         elif grade == MessageGrade.stop:
-            return "#7c4dff"  # Purple
+            return GUI_COLORS["STOP"]
         else:
-            return "#e0e0e0"  # White/Gray
+            return GUI_COLORS["ETC"]
 
     def _on_new_log(self, log: LogEntry):
         """새 로그가 들어오면 호출되는 콜백"""
         
         # 타임스탬프 포맷팅 (HH:MM:SS)
         try:
-            ts = datetime.fromisoformat(log.timestamp).strftime("%H:%M:%S")
+            ts = datetime.fromisoformat(log.timestamp).strftime("%d/%m, %H:%M:%S")
         except:
             ts = log.timestamp
 
         # 로그 텍스트 구성
         log_line = ft.Row(
             controls=[
-                ft.Text(f"[{ts}]", color="#808080", size=12, font_family="Consolas"),
-                ft.Text(f"[{log.source}]", color="#4ec9b0", size=12, weight=ft.FontWeight.BOLD, font_family="Consolas"),
-                ft.Text(log.details if isinstance(log.details, str) else str(log.details), 
+                ft.Text(f"[{ts}]", color="#808080", size=12, font_family="Consolas", width=105, selectable=True),
+                ft.Text(
+                    f"[{log.source}]".ljust(20), color="#4ec9b0", size=12,
+                    weight=ft.FontWeight.BOLD, font_family="Consolas", width=125, selectable=True,
+                    expand=False, overflow=ft.TextOverflow.VISIBLE, text_align=ft.TextAlign.CENTER
+                ),
+                ft.Text(
+                    log.event.name.upper(), color=self._get_color_by_grade(log.event), size=12,
+                    weight=ft.FontWeight.BOLD, font_family="Consolas", width=80, selectable=True,
+                    expand=False, text_align=ft.TextAlign.CENTER
+                ),
+                ft.Text(log.details if isinstance(log.details, str) else f"message: {str(log.details.get("message", "-") or log.details.get("error_message", "-"))}", 
                         color=self._get_color_by_grade(log.event), 
                         size=12, 
                         font_family="Consolas",
                         selectable=True, # 텍스트 복사 가능하게
-                        expand=True) # 긴 내용은 줄바꿈
+                        expand=False)
             ],
             vertical_alignment=ft.CrossAxisAlignment.START,
             spacing=5,
         )
+        log_line.scroll = ft.ScrollMode.AUTO
 
         # UI 업데이트 (Main Thread 안전하게 처리)
         self.log_list.controls.append(log_line)

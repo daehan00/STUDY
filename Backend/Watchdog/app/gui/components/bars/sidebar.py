@@ -102,7 +102,7 @@ class Sidebar:
                     # 서버 관리
                     ft.ExpansionTile(
                         title=ft.Text("서버 관리", size=15, weight=ft.FontWeight.W_500),
-                        leading=ft.Icon(ft.Icons.DNS, size=20, color="#4a5568"),
+                        # leading=ft.Icon(ft.Icons.DNS, size=20, color="#4a5568"),
                         controls=[
                             ft.ListTile(
                                 title=ft.Text("서버 추가하기", size=13),
@@ -125,7 +125,7 @@ class Sidebar:
                     # 알림 관리
                     ft.ExpansionTile(
                         title=ft.Text("알림 관리", size=15, weight=ft.FontWeight.W_500),
-                        leading=ft.Icon(ft.Icons.NOTIFICATIONS_ACTIVE, size=20, color="#4a5568"),
+                        # leading=ft.Icon(ft.Icons.NOTIFICATIONS_ACTIVE, size=20, color="#4a5568"),
                         controls=[
                             ft.ListTile(
                                 title=ft.Text("알림 채널 설정", size=13),
@@ -141,7 +141,7 @@ class Sidebar:
                     ft.Divider(height=1),
                     ft.ExpansionTile(
                         title=ft.Text("실행 기록 확인", size=15, weight=ft.FontWeight.W_500),
-                        leading=ft.Icon(ft.Icons.CHECKROOM, size=20, color="#4a5568"),
+                        # leading=ft.Icon(ft.Icons.CHECKROOM, size=20, color="#4a5568"),
                         controls=[
                             ft.ListTile(
                                 title=ft.Text("서버 로그 확인", size=13),

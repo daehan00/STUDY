@@ -4,7 +4,8 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from app.config import SERVERS_DATA_FILE, DATA_VERSION, SERVER_STATUS
+from app.config import SERVERS_DATA_FILE, SERVER_STATUS
+from app.utils.server_logger import FileManager
 
 logger = logging.getLogger("ServerService")
 
@@ -23,16 +24,15 @@ class ServerService:
     def __init__(self):
         if self._initialized:
             return
-        
-        # config에서 데이터 파일 경로 가져오기
-        self.data_file = SERVERS_DATA_FILE
-        self.data_version = DATA_VERSION
-        
-        self.servers: List[Dict] = []
+
+        self.file_manager = FileManager(SERVERS_DATA_FILE, "servers")
         self.listeners = []  # 리스너 목록
-        self._ensure_data_file()
-        self.load()
         self._initialized = True
+        self.servers: List[Dict] = []
+        servers = self.file_manager.load()
+        
+        if isinstance(servers, list):
+            self.servers = servers
     
     def add_listener(self, callback):
         """데이터 변경 리스너 추가"""
@@ -46,45 +46,6 @@ class ServerService:
                 listener(event_type, server_data)
             except Exception as e:
                 logger.error(f"Error in server service listener: {e}")
-
-    def _ensure_data_file(self) -> None:
-        """데이터 파일이 존재하는지 확인하고 없으면 생성"""
-        if not self.data_file.exists():
-            # 디렉토리가 없으면 생성
-            self.data_file.parent.mkdir(parents=True, exist_ok=True)
-            
-            # 초기 데이터 구조 생성
-            initial_data = {
-                "version": self.data_version,
-                "servers": []
-            }
-            
-            with open(self.data_file, 'w', encoding='utf-8') as f:
-                json.dump(initial_data, f, ensure_ascii=False, indent=2)
-    
-    def load(self) -> None:
-        """JSON 파일에서 서버 데이터 로드"""
-        try:
-            with open(self.data_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                self.servers = data.get("servers", [])
-        except (FileNotFoundError, json.JSONDecodeError) as e:
-            logger.error(f"데이터 로드 오류: {e}")
-            self.servers = []
-    
-    def save(self) -> None:
-        """현재 서버 데이터를 JSON 파일에 저장"""
-        data = {
-            "version": self.data_version,
-            "servers": self.servers
-        }
-        
-        try:
-            with open(self.data_file, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            logger.error(f"데이터 저장 오류: {e}")
-            raise
     
     def _generate_id(self) -> str:
         """고유한 UUID 생성"""
@@ -147,7 +108,7 @@ class ServerService:
         }
         
         self.servers.append(new_server)
-        self.save()
+        self.file_manager.save(self.servers)
         
         self._notify_listeners("add", new_server)
         return new_server.copy()
@@ -161,7 +122,7 @@ class ServerService:
                 # updated_at 갱신
                 self.servers[i]["updated_at"] = self._get_timestamp()
                 
-                self.save()
+                self.file_manager.save(self.servers)
                 
                 updated_server = self.servers[i].copy()
                 self._notify_listeners("update", updated_server)
@@ -176,7 +137,7 @@ class ServerService:
         self.servers = [s for s in self.servers if s.get("id") != server_id]
         
         if len(self.servers) < initial_length:
-            self.save()
+            self.file_manager.save(self.servers)
             if deleted_server:
                 self._notify_listeners("delete", deleted_server)
             return True
