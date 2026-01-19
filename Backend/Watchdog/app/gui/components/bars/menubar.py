@@ -4,6 +4,7 @@ import logging
 
 from app.services import MonitorService
 from app.gui.utils.notification_helper import NotificationHelper
+from app.config.user_config import user_setting
 
 logger = logging.getLogger("MenuBar")
 
@@ -79,7 +80,115 @@ class MenuBar:
         except Exception as ex:
             NotificationHelper.error(self.page, f"모니터링 중지 실패: {str(ex)}")
             logger.error(f"모니터링 중지 실패: {str(ex)}")
-    
+
+    def _open_settings_dialog(self, e):
+        """설정 다이얼로그 열기"""
+        
+        # 현재 설정 값 로드
+        current_config = user_setting.get_all()
+        
+        # UI 컨트롤 참조 변수
+        theme_mode = ft.Dropdown(
+            label="테마 설정",
+            value=current_config.get("theme_mode", "light"),
+            options=[
+                ft.dropdown.Option("light", "라이트 모드"),
+                ft.dropdown.Option("dark", "다크 모드"),
+                ft.dropdown.Option("system", "시스템 설정"),
+            ],
+            width=200,
+        )
+        
+        notifications_enabled = ft.Switch(
+            # label="알림 활성화",
+            value=current_config.get("notifications_enabled", True),
+        )
+        
+        log_retention = ft.TextField(
+            label="로그 보관 기간 (일)",
+            value=str(current_config.get("log_retention_days", 7)),
+            keyboard_type=ft.KeyboardType.NUMBER,
+            width=200,
+        )
+
+        max_log = ft.TextField(
+            label="로그 최대 개수",
+            value=str(current_config.get("max_logs", 1000)),
+            keyboard_type=ft.KeyboardType.NUMBER,
+            width=200,
+        )
+        
+        auto_start = ft.Switch(
+            # label="앱 실행 시 자동 모니터링 시작",
+            value=current_config.get("auto_start_monitoring", False),
+        )
+
+        def close_dlg(e):
+            self.page.pop_dialog()
+
+        def save_settings(e):
+            """설정 저장 처리"""
+            try:
+                # 입력값 수집
+                new_settings = {
+                    "theme_mode": theme_mode.value,
+                    "notifications_enabled": notifications_enabled.value,
+                    "log_retention_days": int(log_retention.value) if log_retention.value.isdigit() else 7,
+                    "auto_start_monitoring": auto_start.value,
+                    "max_logs" : max_log.value
+                }
+                
+                # 저장
+                result = user_setting.update_all(new_settings)
+                
+                if result is None: # 성공 시 None 반환
+                    NotificationHelper.success(self.page, "설정이 저장되었습니다.")
+                else:
+                    NotificationHelper.error(self.page, f"설정 저장 실패: {result}")
+                
+                self.page.pop_dialog()
+                
+            except Exception as ex:
+                NotificationHelper.error(self.page, f"설정 저장 중 오류: {ex}")
+
+        # 다이얼로그 구성
+        dlg = ft.AlertDialog(
+            title=ft.Text("환경 설정"),
+            content=ft.Column([
+                ft.Container(height=10),
+                theme_mode,
+                ft.Container(height=10),
+                ft.Row(
+                    [ft.Text("알림 활성화"), notifications_enabled],
+                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                    width=200
+                ),
+                ft.Container(height=10),
+                ft.Column(
+                    [
+                        ft.Text("로그 설정"),
+                        log_retention,
+                        max_log,
+                    ], width=200
+                ),
+                ft.Container(height=10),
+                ft.Row(
+                    [ft.Text("실행 시 모니터링 시작"), auto_start],
+                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                    width=200
+                ),
+                ft.Container(height=20),
+            ], tight=True, width=250, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+            actions=[
+                ft.TextButton("취소", on_click=close_dlg),
+                ft.ElevatedButton("저장", on_click=save_settings, bgcolor="#4F46E5", color="white"),
+            ],
+            alignment=ft.Alignment(0,0),
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        
+        self.page.show_dialog(dlg)
+
     def build(self):
         """메뉴바 빌드"""
         top_menu = ft.Container(
@@ -119,7 +228,7 @@ class MenuBar:
                             alignment=ft.Alignment(0, 0),
                             tooltip="설정",
                             ink=True,
-                            on_click=lambda _: print("설정"),
+                            on_click=lambda _: self._open_settings_dialog("설정"),
                         ),
                         ft.Container(
                             content=ft.Icon(ft.Icons.NOTIFICATIONS, size=20),

@@ -6,6 +6,7 @@ from app.utils.server_logger import LogManager
 from app.gui.components.pannels.main_panel import MainPanel
 from app.gui.components.bars.sidebar import Sidebar
 from app.gui.components.bars.menubar import create_menubar
+from app.config.user_config import user_setting
 
 def main(page: ft.Page):
     page.theme_mode = ft.ThemeMode.LIGHT
@@ -46,8 +47,12 @@ def main(page: ft.Page):
         app_state.update_server(server_id, {'status': status})
     
     monitor_service.add_listener(sync_monitor_status)
+
+    max_log = user_setting.get("max_logs")
+    if not isinstance(max_log, int):
+        max_log = 100
     
-    log_manager = LogManager()
+    log_manager = LogManager(max_log)
     # LogManager -> AppState 로그 동기화 연결
     log_manager.add_listener(app_state.add_log)
 

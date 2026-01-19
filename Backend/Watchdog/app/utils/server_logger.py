@@ -7,7 +7,7 @@ from typing import Deque
 from pydantic import BaseModel, Field
 
 from app.core.models import MessageGrade, Status
-from app.config.settings import MAX_LOG, LOCAL_TZ, DATA_VERSION, LOG_DATA_FILE
+from app.config.settings import LOCAL_TZ, DATA_VERSION, LOG_DATA_FILE
 
 
 class LogEntry(BaseModel):
@@ -28,17 +28,17 @@ class LogManager:
     """Singleton pattern의 로그 관리 클래스"""
     _instance = None
     
-    def __new__(cls):
+    def __new__(cls, *args, **kwargs):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self) -> None:
+    def __init__(self, max_log: int = 1000) -> None:
         if self._initialized:
             return
         
-        self.log: Deque[LogEntry] = deque(maxlen=MAX_LOG)
+        self.log: Deque[LogEntry] = deque(maxlen=max_log)
         self._lock = asyncio.Lock()
         self._semaphore = asyncio.Semaphore(5)
         self._initialized = True
@@ -192,9 +192,10 @@ class CustomLogger:
 
 
 class FileManager:
-    def __init__(self, data_file: Path) -> None:
+    def __init__(self, data_file: Path, source: str = "data") -> None:
         self.data_file = data_file
         self.data_version = DATA_VERSION
+        self.source = source
         self._ensure_data_file()
     
     def _ensure_data_file(self) -> None:
@@ -206,27 +207,27 @@ class FileManager:
             # 초기 데이터 구조 생성
             initial_data = {
                 "version": self.data_version,
-                "data": []
+                self.source: []
             }
             
             with open(self.data_file, 'w', encoding='utf-8') as f:
                 json.dump(initial_data, f, ensure_ascii=False, indent=2)
 
-    def load(self) -> list:
+    def load(self) -> list | dict:
         """JSON 파일에서 서버 데이터 로드"""
         try:
             with open(self.data_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                return data.get("data", [])
+                return data.get(self.source, [])
         except (FileNotFoundError, json.JSONDecodeError) as e:
             print(f"데이터 로드 오류: {e}")
             return []
     
-    def save(self, data: list) -> None:
+    def save(self, data: list | dict) -> None:
         """현재 서버 데이터를 JSON 파일에 저장"""
         in_data = {
             "version": self.data_version,
-            "data": data,
+            self.source: data,
         }
         
         try:

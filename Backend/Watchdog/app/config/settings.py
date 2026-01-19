@@ -42,9 +42,20 @@ GUI_COLORS = {
     "SUCCESS_GREEN": "#10B981",
     "WARNING_ORANGE": "#F59E0B",
     "GRAY": "#6B7280",
+    "START": "#448aff",
+    "STOP": "#7c4dff",
+    "ETC": "#e0e0e0"
 }
 
-# log 저장 최대 갯수
-MAX_LOG = 10
-
 LOCAL_TZ = datetime.datetime.now().astimezone().tzinfo
+
+SETTING_FILE = USER_DATA_DIR / "settings.json"
+
+# 사용자 기본 설정
+DEFAULT_USER_SETTINGS = {
+    "theme_mode": "light",
+    "notifications_enabled": True,
+    "log_retention_days": 7,
+    "auto_start_monitoring": False,
+    "max_logs": 1000
+}
