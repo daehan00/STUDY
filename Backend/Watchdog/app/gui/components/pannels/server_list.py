@@ -194,6 +194,8 @@ class ServerListView:
         success = self.server_service.delete_server(server_id)
         if success:
             self._update_server_list()
+        
+        return success
     
     def refresh(self):
         """서버 목록 새로고침"""

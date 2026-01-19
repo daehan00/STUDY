@@ -7,6 +7,8 @@ from .settings import (
     DBMS_PORTS,
     GUI_COLORS,
     LOG_LEVEL,
+    LOCAL_TZ,
+    LOG_DATA_FILE
 )
 
 __all__ = [
@@ -18,4 +20,6 @@ __all__ = [
     "DBMS_PORTS",
     "GUI_COLORS",
     "LOG_LEVEL",
+    "LOCAL_TZ",
+    "LOG_DATA_FILE",
 ]
