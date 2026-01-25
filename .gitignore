@@ -2,12 +2,16 @@
 **venv
 **__pycache__**
 **.DS_Store
+**.gemini
 
 OSStudy
 /BigData
 */algorithm-website
-**/DB
-**.json
+**/test_servers/DB
+**servers.json
 
 **/build
 **/dist
+
+**.env
+**.db
